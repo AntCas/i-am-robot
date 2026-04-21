@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Node / Wrangler
+node_modules/
+.wrangler/
+dist/
+coverage/
+
+# Editor swap and backup files
+*~
+*.swp
+*.swo
+
+# Vim session files
+Session.vim
+
+# VS Code / Cursor
+.vscode/
+.idea/
+
+# Env files
+.env
+.env.*
+
+# Logs
+*.log

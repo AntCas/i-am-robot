@@ -1,0 +1,15 @@
+{
+  "name": "i-am-robot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cf:bootstrap": "bash scripts/bootstrap-cloudflare.sh",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260415.0",
+    "wrangler": "^4.12.0"
+  }
+}
