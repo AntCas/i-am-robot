@@ -110,8 +110,8 @@ SITE_CONFIG='{
   "allowedHostnames": ["castrio.me"]
 }'
 
-pnpm wrangler kv key put --binding SITES "site:site_demo_123" "$SITE_CONFIG"
-echo "Seeded demo site config in KV."
+pnpm wrangler kv key put --remote --binding SITES "site:site_demo_123" "$SITE_CONFIG"
+echo "Seeded demo site config in remote KV."
 
 cat <<EOF
 

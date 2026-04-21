@@ -4,7 +4,11 @@ main = "src/index.ts"
 compatibility_date = "2026-04-21"
 
 [[routes]]
-pattern = "castrio.me/i-am-robot*"
+pattern = "castrio.me/i-am-robot"
+zone_name = "castrio.me"
+
+[[routes]]
+pattern = "castrio.me/i-am-robot/*"
 zone_name = "castrio.me"
 
 [[kv_namespaces]]
@@ -23,3 +27,4 @@ DEV_SIGNING_SECRET = "local-demo-signing-secret-change-me"
 directory = "./site"
 binding = "ASSETS"
 run_worker_first = true
+html_handling = "none"
