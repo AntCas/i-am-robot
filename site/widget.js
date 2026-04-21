@@ -15,7 +15,7 @@ class RobotCheckWidget extends HTMLElement {
 
           <div class="widget-copy">
             <p class="widget-title">I'm a robot</p>
-            <p class="widget-subtitle">Timed challenge verification</p>
+            <p class="widget-subtitle">No humans allowed</p>
           </div>
         </div>
 
