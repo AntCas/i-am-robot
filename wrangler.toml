@@ -9,11 +9,11 @@ zone_name = "castrio.me"
 
 [[kv_namespaces]]
 binding = "SITES"
-id = "replace-with-sites-kv-id"
+id = "5d08b49c2ed84c469c5a538287bae77a"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "replace-with-sessions-kv-id"
+id = "1c09e57011bf43c299ab6bab742996d9"
 
 [vars]
 DEFAULT_SITE_CONFIG = "{\"siteKey\":\"site_demo_123\",\"secret\":\"secret_demo_abc\",\"allowedHostnames\":[\"castrio.me\",\"localhost:8787\",\"localhost:3000\",\"127.0.0.1:3000\"]}"

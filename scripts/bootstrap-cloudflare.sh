@@ -22,25 +22,64 @@ fi
 
 echo "Bootstrapping Cloudflare resources for i-am-robot..."
 
-create_namespace() {
+find_existing_namespace_id() {
+  local binding="$1"
+  local list_output
+  local id
+
+  list_output="$(pnpm wrangler kv namespace list)"
+  id="$(printf '%s\n' "$list_output" | node -e '
+    const fs = require("fs");
+    const binding = process.argv[1];
+    const input = fs.readFileSync(0, "utf8");
+    const start = input.indexOf("[");
+
+    if (start === -1) {
+      process.exit(0);
+    }
+
+    try {
+      const namespaces = JSON.parse(input.slice(start));
+      const match = namespaces.find((entry) => entry.title === binding);
+      if (match?.id) {
+        process.stdout.write(match.id);
+      }
+    } catch {
+      process.exit(0);
+    }
+  ' "$binding")"
+
+  printf '%s' "$id"
+}
+
+ensure_namespace() {
   local binding="$1"
   local output
   local id
 
-  output="$(pnpm wrangler kv namespace create "$binding")"
-  printf '%s\n' "$output"
+  if output="$(pnpm wrangler kv namespace create "$binding" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    id="$(printf '%s\n' "$output" | sed -n 's/.*id = "\([^"]*\)".*/\1/p' | head -n 1)"
+  else
+    printf '%s\n' "$output" >&2
 
-  id="$(printf '%s\n' "$output" | sed -n 's/.*id = "\([^"]*\)".*/\1/p' | head -n 1)"
+    if printf '%s\n' "$output" | grep -q "already exists"; then
+      id="$(find_existing_namespace_id "$binding")"
+    else
+      exit 1
+    fi
+  fi
+
   if [[ -z "$id" ]]; then
-    echo "Failed to parse namespace id for $binding" >&2
+    echo "Failed to resolve namespace id for $binding" >&2
     exit 1
   fi
 
   printf '%s' "$id"
 }
 
-SITES_ID="$(create_namespace SITES)"
-SESSIONS_ID="$(create_namespace SESSIONS)"
+SITES_ID="$(ensure_namespace SITES)"
+SESSIONS_ID="$(ensure_namespace SESSIONS)"
 
 node - "$WRANGLER_TOML" "$SITES_ID" "$SESSIONS_ID" <<'EOF'
 const fs = require("fs");
@@ -48,8 +87,8 @@ const fs = require("fs");
 const [filePath, sitesId, sessionsId] = process.argv.slice(2);
 let text = fs.readFileSync(filePath, "utf8");
 
-text = text.replace('id = "replace-with-sites-kv-id"', `id = "${sitesId}"`);
-text = text.replace('id = "replace-with-sessions-kv-id"', `id = "${sessionsId}"`);
+text = text.replace(/binding = "SITES"\s+id = "[^"]+"/m, `binding = "SITES"\nid = "${sitesId}"`);
+text = text.replace(/binding = "SESSIONS"\s+id = "[^"]+"/m, `binding = "SESSIONS"\nid = "${sessionsId}"`);
 
 fs.writeFileSync(filePath, text);
 EOF
