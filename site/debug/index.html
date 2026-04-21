@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>I Am Robot Debug</title>
+  <link rel="stylesheet" href="/im-a-robot/styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Robot Verification Debug</p>
+      <h1>I'm a robot</h1>
+      <p class="lede">
+        A static page that calls a Cloudflare Worker to issue timed challenges, score the answer,
+        and return a signed verification token.
+      </p>
+    </section>
+
+    <section class="widget-shell">
+      <robot-check-widget></robot-check-widget>
+
+      <form id="challenge-form" class="challenge-form">
+        <div class="panel-header">
+          <div>
+            <h2>Challenge Runner</h2>
+            <p class="muted">The browser calls <code>/api/challenge/start</code> and <code>/api/challenge/submit</code>.</p>
+          </div>
+          <button id="new-challenge-button" class="secondary" type="button">New Challenge</button>
+        </div>
+
+        <div class="field-row">
+          <label>
+            Site key
+            <input id="site-key-input" name="siteKey" value="site_demo_123" required>
+          </label>
+          <label>
+            Hostname
+            <input id="hostname-input" name="hostname" value="localhost:3000" required>
+          </label>
+          <label>
+            API base
+            <input id="api-base-input" name="apiBase" value="" placeholder="Auto (same origin)">
+          </label>
+        </div>
+
+        <div id="challenge-meta" class="challenge-meta hidden">
+          <span id="challenge-type-badge" class="badge"></span>
+          <span id="timer-badge" class="badge badge-accent"></span>
+        </div>
+
+        <div id="challenge-container" class="challenge-container">
+          <p class="muted">Check the box or start a challenge to load the current prompt.</p>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="submit-button" disabled>Verify</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel panel-tight">
+      <h2>Last Response</h2>
+      <pre id="result-output" class="result-output">No response yet.</pre>
+    </section>
+
+    <section class="panel panel-tight">
+      <h2>Server Verify Example</h2>
+      <p class="muted">
+        Customer backends should POST the result token to <code>/api/verify</code> with their secret key before gating content.
+      </p>
+      <pre class="result-output">curl -X POST "$API_BASE/api/verify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "secret": "secret_demo_abc",
+    "resultToken": "..."
+  }'</pre>
+    </section>
+  </main>
+
+  <script type="module" src="/im-a-robot/app.js"></script>
+</body>
+</html>

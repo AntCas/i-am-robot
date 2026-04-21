@@ -1,3 +1,5 @@
+import "./widget.js";
+
 const state = {
   apiBase: "",
   appBasePath: "",

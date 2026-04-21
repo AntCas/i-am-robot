@@ -579,6 +579,18 @@ function toAssetPath(pathname: string): string | null {
 		return "/index.html";
 	}
 
+	if (pathname === `${APP_BASE_PATH}/debug` || pathname === `${APP_BASE_PATH}/debug/`) {
+		return "/debug/index.html";
+	}
+
+	if (pathname === `${APP_BASE_PATH}/privacy` || pathname === `${APP_BASE_PATH}/privacy/`) {
+		return "/privacy/index.html";
+	}
+
+	if (pathname === `${APP_BASE_PATH}/terms` || pathname === `${APP_BASE_PATH}/terms/`) {
+		return "/terms/index.html";
+	}
+
 	if (pathname.startsWith(`${APP_BASE_PATH}/`)) {
 		return pathname.slice(APP_BASE_PATH.length);
 	}

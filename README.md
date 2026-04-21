@@ -62,7 +62,7 @@ Local fallback:
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me", "localhost:8787", "localhost:3000", "127.0.0.1:8787"]
+  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"]
 }'
 ```
 
@@ -71,6 +71,8 @@ npx wrangler kv key put --binding SITES "site:site_demo_123" '{
 ```bash
 npm run dev
 ```
+
+The Worker now serves both the page and the static assets locally, so a separate Python static server is no longer needed.
 
 Open either:
 
