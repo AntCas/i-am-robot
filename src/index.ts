@@ -96,7 +96,7 @@ interface ResultTokenPayload {
 
 const SESSION_TTL_SECONDS = 60 * 15;
 const RESULT_TOKEN_TTL_SECONDS = 60 * 5;
-const APP_BASE_PATH = "/i-am-robot";
+const APP_BASE_PATH = "/im-a-robot";
 const API_PATH_PREFIX = `${APP_BASE_PATH}/api`;
 
 const corsHeaders = {

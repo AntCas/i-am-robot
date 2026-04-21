@@ -4,11 +4,11 @@ main = "src/index.ts"
 compatibility_date = "2026-04-21"
 
 [[routes]]
-pattern = "castrio.me/i-am-robot"
+pattern = "castrio.me/im-a-robot"
 zone_name = "castrio.me"
 
 [[routes]]
-pattern = "castrio.me/i-am-robot/*"
+pattern = "castrio.me/im-a-robot/*"
 zone_name = "castrio.me"
 
 [[kv_namespaces]]

@@ -220,8 +220,8 @@ function resolveApiBase(value, appBasePath) {
 }
 
 function detectAppBasePath() {
-  if (window.location.pathname === "/i-am-robot" || window.location.pathname.startsWith("/i-am-robot/")) {
-    return "/i-am-robot";
+  if (window.location.pathname === "/im-a-robot" || window.location.pathname.startsWith("/im-a-robot/")) {
+    return "/im-a-robot";
   }
 
   return "";

@@ -6,16 +6,16 @@ The app now deploys as a single Worker that:
 
 - serves the static frontend from [site/index.html](/Users/primaryuser/Desktop/i-am-robot/site/index.html)
 - serves the API from [src/index.ts](/Users/primaryuser/Desktop/i-am-robot/src/index.ts)
-- is intended to run at `https://castrio.me/i-am-robot`
+- is intended to run at `https://castrio.me/im-a-robot`
 
 ## Runtime Shape
 
 Production URLs:
 
-- App page: `https://castrio.me/i-am-robot`
-- API start: `https://castrio.me/i-am-robot/api/challenge/start`
-- API submit: `https://castrio.me/i-am-robot/api/challenge/submit`
-- API verify: `https://castrio.me/i-am-robot/api/verify`
+- App page: `https://castrio.me/im-a-robot`
+- API start: `https://castrio.me/im-a-robot/api/challenge/start`
+- API submit: `https://castrio.me/im-a-robot/api/challenge/submit`
+- API verify: `https://castrio.me/im-a-robot/api/verify`
 
 Current challenge types:
 
@@ -74,12 +74,12 @@ npm run dev
 
 Open either:
 
-- [http://127.0.0.1:8787/i-am-robot](http://127.0.0.1:8787/i-am-robot)
+- [http://127.0.0.1:8787/im-a-robot](http://127.0.0.1:8787/im-a-robot)
 - [http://127.0.0.1:8787/](http://127.0.0.1:8787/)
 
 For local Worker-served assets, leave the `API base` field empty so the UI uses same-origin requests automatically.
 
-## Deploy To `castrio.me/i-am-robot`
+## Deploy To `castrio.me/im-a-robot`
 
 These are the exact steps to put this Worker on the same Cloudflare zone as your other project.
 
@@ -117,7 +117,7 @@ npx wrangler login
 
 - the real KV namespace IDs
 - the route:
-  - `castrio.me/i-am-robot*`
+  - `castrio.me/im-a-robot*`
 - the static asset directory:
   - `./site`
 
@@ -158,13 +158,13 @@ In the Cloudflare dashboard:
 3. Go to `Settings`
 4. Open `Domains & Routes`
 5. Confirm the route is attached to:
-   - `castrio.me/i-am-robot*`
+   - `castrio.me/im-a-robot*`
 
 ### 7. Test production
 
 Open:
 
-- [https://castrio.me/i-am-robot](https://castrio.me/i-am-robot)
+- [https://castrio.me/im-a-robot](https://castrio.me/im-a-robot)
 
 Then verify:
 
@@ -175,7 +175,7 @@ Then verify:
 
 ## API Examples
 
-### `POST /i-am-robot/api/challenge/start`
+### `POST /im-a-robot/api/challenge/start`
 
 ```json
 {
@@ -185,7 +185,7 @@ Then verify:
 }
 ```
 
-### `POST /i-am-robot/api/challenge/submit`
+### `POST /im-a-robot/api/challenge/submit`
 
 ```json
 {
@@ -196,7 +196,7 @@ Then verify:
 }
 ```
 
-### `POST /i-am-robot/api/verify`
+### `POST /im-a-robot/api/verify`
 
 ```json
 {
