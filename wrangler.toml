@@ -20,7 +20,7 @@ binding = "SESSIONS"
 id = "1c09e57011bf43c299ab6bab742996d9"
 
 [vars]
-DEFAULT_SITE_CONFIG = "{\"siteKey\":\"site_demo_123\",\"secret\":\"secret_demo_abc\",\"allowedHostnames\":[\"castrio.me\",\"localhost:8787\",\"localhost:3000\",\"127.0.0.1:3000\"]}"
+DEFAULT_SITE_CONFIG = "{\"siteKey\":\"site_demo_123\",\"secret\":\"secret_demo_abc\",\"allowedHostnames\":[\"castrio.me\",\"localhost:8787\",\"127.0.0.1:8787\"]}"
 DEV_SIGNING_SECRET = "local-demo-signing-secret-change-me"
 
 [assets]

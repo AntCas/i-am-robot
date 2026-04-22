@@ -293,7 +293,7 @@ async function handleChallengeStart(request: Request, env: Env): Promise<Respons
 		return jsonError("invalid_site_key", 404);
 	}
 
-	if (!site.allowedHostnames.includes(hostname)) {
+	if (!hostnameAllowed(site.allowedHostnames, hostname)) {
 		return jsonError("hostname_not_allowed", 403);
 	}
 
@@ -472,11 +472,21 @@ async function handleVerify(request: Request, env: Env): Promise<Response> {
 
 async function loadSiteConfig(env: Env, siteKey: string): Promise<SiteConfig | null> {
 	const siteFromKv = await env.SITES.get(`site:${siteKey}`, "json");
+	const fallback = parseDefaultSite(env.DEFAULT_SITE_CONFIG);
+
 	if (siteFromKv) {
-		return siteFromKv as SiteConfig;
+		const site = siteFromKv as SiteConfig;
+
+		if (fallback?.siteKey === site.siteKey) {
+			return {
+				...site,
+				allowedHostnames: Array.from(new Set([...site.allowedHostnames, ...fallback.allowedHostnames])),
+			};
+		}
+
+		return site;
 	}
 
-	const fallback = parseDefaultSite(env.DEFAULT_SITE_CONFIG);
 	if (fallback?.siteKey === siteKey) {
 		return fallback;
 	}
@@ -615,6 +625,38 @@ function safeHostname(value: string): string | null {
 	} catch {
 		return null;
 	}
+}
+
+function hostnameAllowed(allowedHostnames: string[], hostname: string): boolean {
+	if (allowedHostnames.includes(hostname)) {
+		return true;
+	}
+
+	// Local dev is commonly served via localhost or 127.0.0.1 on the same port.
+	if (isLoopbackHost(hostname)) {
+		return allowedHostnames.some((candidate) => isLoopbackHost(candidate) && samePort(candidate, hostname));
+	}
+
+	return false;
+}
+
+function isLoopbackHost(value: string): boolean {
+	const host = splitHostAndPort(value).host;
+	return host === "localhost" || host === "127.0.0.1";
+}
+
+function samePort(left: string, right: string): boolean {
+	return splitHostAndPort(left).port === splitHostAndPort(right).port;
+}
+
+function splitHostAndPort(value: string): { host: string; port: string } {
+	const parts = value.split(":");
+	if (parts.length === 1) {
+		return { host: value, port: "" };
+	}
+
+	const port = parts.pop() ?? "";
+	return { host: parts.join(":"), port };
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
