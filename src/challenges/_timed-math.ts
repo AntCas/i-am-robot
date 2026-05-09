@@ -1,13 +1,5 @@
 import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared";
-import type { ChallengeDefinition } from "../types";
-
-interface TimedMathAnswer {
-	value?: string;
-}
-
-interface TimedMathGradingKey {
-	expected: number;
-}
+import type { ChallengeDefinition, IntegerChallengeAnswer, IntegerChallengeGradingKey } from "../types";
 
 export const timedMathChallenge: ChallengeDefinition = {
 	type: "timed_math",
@@ -18,11 +10,15 @@ export const timedMathChallenge: ChallengeDefinition = {
 
 		return {
 			promptPayload: {
-				question: `What is ${firstFactor} * ${secondFactor} + ${addend}?`,
+				kind: "short_text",
 				answerFormat: "integer",
+				instruction: "Solve the expression.",
+				body: `What is ${firstFactor} * ${secondFactor} + ${addend}?`,
+				inputLabel: "Answer",
 			},
 			gradingKey: {
-				expected: firstFactor * secondFactor + addend,
+				answerFormat: "integer",
+				expectedInteger: firstFactor * secondFactor + addend,
 			},
 			timeLimitMs: 5000,
 		};
@@ -32,8 +28,8 @@ export const timedMathChallenge: ChallengeDefinition = {
 			return createFailedScore("deadline_exceeded");
 		}
 
-		const submittedAnswer = Number((context.answer as TimedMathAnswer)?.value);
-		const expectedAnswer = (context.gradingKey as TimedMathGradingKey).expected;
+		const submittedAnswer = Number((context.answer as IntegerChallengeAnswer | undefined)?.value);
+		const expectedAnswer = (context.gradingKey as IntegerChallengeGradingKey).expectedInteger;
 
 		if (Number.isFinite(submittedAnswer) && submittedAnswer === expectedAnswer) {
 			return createSuccessfulScore();

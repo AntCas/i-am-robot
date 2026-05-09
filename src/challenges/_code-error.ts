@@ -5,15 +5,7 @@ import {
 	getRandomInteger,
 	wasSubmittedAfterDeadline,
 } from "./shared";
-import type { ChallengeDefinition } from "../types";
-
-interface CodeErrorAnswer {
-	value?: string;
-}
-
-interface CodeErrorGradingKey {
-	expectedChoice: CodeErrorChoiceValue;
-}
+import type { ChallengeDefinition, ChoiceChallengeAnswer, ChoiceChallengeGradingKey } from "../types";
 
 const CODE_ERROR_CHOICES = [
 	{ value: "mutates_input", label: "It mutates the input array in place." },
@@ -85,12 +77,19 @@ export const codeErrorChallenge: ChallengeDefinition = {
 
 		return {
 			promptPayload: {
-				description: "Find the bug in the snippet. Pick the best answer.",
+				kind: "multiple_choice",
+				answerFormat: "choice_id",
+				instruction: "Find the bug in the snippet. Pick the best answer.",
 				code: prompt.code,
-				choices: createShuffledCopy([...CODE_ERROR_CHOICES]),
+				layout: "list",
+				choices: createShuffledCopy([...CODE_ERROR_CHOICES]).map((choice) => ({
+					id: choice.value,
+					label: choice.label,
+				})),
 			},
 			gradingKey: {
-				expectedChoice: prompt.expectedChoice,
+				answerFormat: "choice_id",
+				expectedChoiceId: prompt.expectedChoice,
 			},
 			timeLimitMs: 7000,
 		};
@@ -100,8 +99,8 @@ export const codeErrorChallenge: ChallengeDefinition = {
 			return createFailedScore("deadline_exceeded");
 		}
 
-		const submittedChoice = String((context.answer as CodeErrorAnswer)?.value ?? "");
-		const expectedChoice = (context.gradingKey as CodeErrorGradingKey).expectedChoice;
+		const submittedChoice = String((context.answer as ChoiceChallengeAnswer | undefined)?.choiceId ?? "");
+		const expectedChoice = (context.gradingKey as ChoiceChallengeGradingKey).expectedChoiceId;
 
 		if (submittedChoice === expectedChoice) {
 			return createSuccessfulScore();

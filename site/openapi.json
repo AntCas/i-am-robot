@@ -380,78 +380,81 @@
           }
         }
       },
-      "TimedMathPrompt": {
+      "ChallengeChoice": {
         "type": "object",
-        "required": ["question", "answerFormat"],
+        "required": ["id", "label"],
         "properties": {
-          "question": {
+          "id": {
             "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ShortTextChallengePrompt": {
+        "type": "object",
+        "required": ["kind", "answerFormat", "instruction", "body", "inputLabel"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "short_text"
           },
           "answerFormat": {
             "type": "string",
-            "enum": ["integer"]
+            "const": "integer"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "inputLabel": {
+            "type": "string"
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
           }
         }
       },
-      "RandomnessAuditChoice": {
+      "MultipleChoiceChallengePrompt": {
         "type": "object",
-        "required": ["label", "bits"],
+        "required": ["kind", "answerFormat", "instruction", "layout", "choices"],
         "properties": {
-          "label": {
-            "type": "string"
-          },
-          "bits": {
-            "type": "string"
-          }
-        }
-      },
-      "RandomnessAuditPrompt": {
-        "type": "object",
-        "required": ["description", "choices"],
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "choices": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RandomnessAuditChoice"
-            },
-            "minItems": 4,
-            "maxItems": 4
-          }
-        }
-      },
-      "CodeErrorChoice": {
-        "type": "object",
-        "required": ["label", "value"],
-        "properties": {
-          "label": {
-            "type": "string"
-          },
-          "value": {
+          "kind": {
             "type": "string",
-            "enum": ["mutates_input", "off_by_one", "wrong_divisor", "const_sum"]
-          }
-        }
-      },
-      "CodeErrorPrompt": {
-        "type": "object",
-        "required": ["description", "code", "choices"],
-        "properties": {
-          "description": {
+            "const": "multiple_choice"
+          },
+          "answerFormat": {
+            "type": "string",
+            "const": "choice_id"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "body": {
             "type": "string"
           },
           "code": {
             "type": "string"
           },
+          "layout": {
+            "type": "string",
+            "enum": ["grid", "list"]
+          },
           "choices": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CodeErrorChoice"
+              "$ref": "#/components/schemas/ChallengeChoice"
             },
-            "minItems": 4,
-            "maxItems": 4
+            "minItems": 1
           }
         }
       },
@@ -465,13 +468,10 @@
           "prompt": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/TimedMathPrompt"
+                "$ref": "#/components/schemas/ShortTextChallengePrompt"
               },
               {
-                "$ref": "#/components/schemas/RandomnessAuditPrompt"
-              },
-              {
-                "$ref": "#/components/schemas/CodeErrorPrompt"
+                "$ref": "#/components/schemas/MultipleChoiceChallengePrompt"
               }
             ]
           }
@@ -511,10 +511,29 @@
         }
       },
       "ChallengeAnswer": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IntegerChallengeAnswer"
+          },
+          {
+            "$ref": "#/components/schemas/ChoiceChallengeAnswer"
+          }
+        ]
+      },
+      "IntegerChallengeAnswer": {
         "type": "object",
         "required": ["value"],
         "properties": {
           "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ChoiceChallengeAnswer": {
+        "type": "object",
+        "required": ["choiceId"],
+        "properties": {
+          "choiceId": {
             "type": "string"
           }
         }

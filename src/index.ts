@@ -21,6 +21,8 @@ import {
 import { signResultToken, verifyResultToken } from "./utils/token";
 import type {
 	ChallengeSession,
+	ChallengeGradingKey,
+	ChallengePrompt,
 	Env,
 	SiteConfig,
 	StartRequestBody,
@@ -432,8 +434,8 @@ function createPendingChallengeSession(args: {
 	challengeType: ChallengeSession["challengeType"];
 	issuedAt: string;
 	deadlineAt: string;
-	promptPayload: unknown;
-	gradingKey: unknown;
+	promptPayload: ChallengePrompt;
+	gradingKey: ChallengeGradingKey;
 }): ChallengeSession {
 	return {
 		id: args.sessionId,

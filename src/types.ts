@@ -10,6 +10,7 @@ export interface Env {
 export type Verdict = "robot" | "human" | "failed";
 export type SessionStatus = "issued" | "completed" | "expired";
 export type ChallengeType = "timed_math" | "randomness_audit" | "code_error";
+export type ChallengeAnswerFormat = "integer" | "choice_id";
 
 export interface SiteConfig {
 	siteKey: string;
@@ -20,6 +21,56 @@ export interface SiteConfig {
 export interface VerificationPolicy {
 	requiredChallengesToPass: number;
 }
+
+export interface ChallengeChoice {
+	id: string;
+	label: string;
+	description?: string;
+}
+
+export interface ShortTextChallengePrompt {
+	kind: "short_text";
+	answerFormat: "integer";
+	instruction: string;
+	body: string;
+	inputLabel: string;
+	placeholder?: string;
+	code?: string;
+}
+
+export interface MultipleChoiceChallengePrompt {
+	kind: "multiple_choice";
+	answerFormat: "choice_id";
+	instruction: string;
+	body?: string;
+	code?: string;
+	layout: "grid" | "list";
+	choices: ChallengeChoice[];
+}
+
+export type ChallengePrompt = ShortTextChallengePrompt | MultipleChoiceChallengePrompt;
+
+export interface IntegerChallengeGradingKey {
+	answerFormat: "integer";
+	expectedInteger: number;
+}
+
+export interface ChoiceChallengeGradingKey {
+	answerFormat: "choice_id";
+	expectedChoiceId: string;
+}
+
+export type ChallengeGradingKey = IntegerChallengeGradingKey | ChoiceChallengeGradingKey;
+
+export interface IntegerChallengeAnswer {
+	value: string;
+}
+
+export interface ChoiceChallengeAnswer {
+	choiceId: string;
+}
+
+export type ChallengeAnswer = IntegerChallengeAnswer | ChoiceChallengeAnswer;
 
 export interface ChallengeSession {
 	id: string;
@@ -32,8 +83,8 @@ export interface ChallengeSession {
 	deadlineAt: string;
 	completedAt: string | null;
 	status: SessionStatus;
-	promptPayload: unknown;
-	gradingKey: unknown;
+	promptPayload: ChallengePrompt;
+	gradingKey: ChallengeGradingKey;
 	score: number | null;
 	verdict: Verdict | null;
 	resultTokenId: string | null;
@@ -61,15 +112,15 @@ export interface ChallengeStartContext {
 }
 
 export interface ChallengeStartResult {
-	promptPayload: unknown;
-	gradingKey: unknown;
+	promptPayload: ChallengePrompt;
+	gradingKey: ChallengeGradingKey;
 	timeLimitMs: number;
 }
 
 export interface ChallengeScoreContext {
-	promptPayload: unknown;
-	gradingKey: unknown;
-	answer: unknown;
+	promptPayload: ChallengePrompt;
+	gradingKey: ChallengeGradingKey;
+	answer: ChallengeAnswer | undefined;
 	submittedAt: Date;
 	deadlineAt: Date;
 }
@@ -95,7 +146,7 @@ export interface StartRequestBody {
 
 export interface SubmitRequestBody {
 	sessionId?: string;
-	answer?: unknown;
+	answer?: ChallengeAnswer;
 }
 
 export interface VerifyRequestBody {

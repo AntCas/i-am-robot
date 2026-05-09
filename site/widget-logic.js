@@ -9,7 +9,7 @@ export function createInitialWidgetState(config) {
     config,
     sessionId: null,
     verificationSessionId: null,
-    challengeType: null,
+    challengePrompt: null,
     deadlineAt: null,
     timerId: null,
     successfulChallenges: 0,
@@ -120,52 +120,42 @@ export function createSubmitChallengeRequestBody(sessionId, answer) {
   };
 }
 
-export function getChallengeMarkup(type, prompt) {
-  if (type === "timed_math") {
+export function getChallengeMarkup(prompt) {
+  if (prompt.kind === "short_text") {
     return `
       <div class="challenge-block">
-        <p>${escapeHtml(prompt.question)}</p>
+        <p>${escapeHtml(prompt.instruction)}</p>
+        ${prompt.body ? `<p>${escapeHtml(prompt.body)}</p>` : ""}
+        ${prompt.code ? `<pre class="code-block">${escapeHtml(prompt.code)}</pre>` : ""}
         <label>
-          Answer
-          <input type="text" id="widget-answer-input" autocomplete="off">
+          ${escapeHtml(prompt.inputLabel)}
+          <input
+            type="text"
+            id="widget-answer-input"
+            autocomplete="off"
+            ${prompt.placeholder ? `placeholder="${escapeHtml(prompt.placeholder)}"` : ""}
+          >
         </label>
       </div>
     `;
   }
 
-  if (type === "randomness_audit") {
+  if (prompt.kind === "multiple_choice") {
+    const containerClass = prompt.layout === "grid" ? "choice-grid" : "choice-list";
+    const itemClass = prompt.layout === "grid" ? "choice-card" : "choice-line";
     return `
       <div class="challenge-block">
-        <p>${escapeHtml(prompt.description)}</p>
-        <div class="choice-grid">
+        <p>${escapeHtml(prompt.instruction)}</p>
+        ${prompt.body ? `<p>${escapeHtml(prompt.body)}</p>` : ""}
+        ${prompt.code ? `<pre class="code-block">${escapeHtml(prompt.code)}</pre>` : ""}
+        <div class="${containerClass}">
           ${prompt.choices
             .map(
               (choice) => `
-                <label class="choice-card">
-                  <input type="radio" name="widget-answer-choice" value="${escapeHtml(choice.label)}">
-                  <strong>${escapeHtml(choice.label)}</strong>
-                  <code>${escapeHtml(choice.bits)}</code>
-                </label>
-              `,
-            )
-            .join("")}
-        </div>
-      </div>
-    `;
-  }
-
-  if (type === "code_error") {
-    return `
-      <div class="challenge-block">
-        <p>${escapeHtml(prompt.description)}</p>
-        <pre class="code-block">${escapeHtml(prompt.code)}</pre>
-        <div class="choice-list">
-          ${prompt.choices
-            .map(
-              (choice) => `
-                <label class="choice-line">
-                  <input type="radio" name="widget-answer-choice" value="${escapeHtml(choice.value)}">
-                  <span>${escapeHtml(choice.label)}</span>
+                <label class="${itemClass}">
+                  <input type="radio" name="widget-answer-choice" value="${escapeHtml(choice.id)}">
+                  ${prompt.layout === "grid" ? `<strong>${escapeHtml(choice.label)}</strong>` : `<span>${escapeHtml(choice.label)}</span>`}
+                  ${choice.description ? `<code>${escapeHtml(choice.description)}</code>` : ""}
                 </label>
               `,
             )
@@ -178,8 +168,12 @@ export function getChallengeMarkup(type, prompt) {
   return `<p class="muted">Unknown challenge type.</p>`;
 }
 
-export function getAnswerForChallengeType(rootElement, challengeType) {
-  if (challengeType === "timed_math") {
+export function getAnswerForPrompt(rootElement, prompt) {
+  if (!prompt) {
+    return null;
+  }
+
+  if (prompt.kind === "short_text") {
     const answerInput = rootElement.querySelector("#widget-answer-input");
     return { value: answerInput?.value?.trim() ?? "" };
   }
@@ -189,7 +183,7 @@ export function getAnswerForChallengeType(rootElement, challengeType) {
     return null;
   }
 
-  return { value: selectedChoice.value };
+  return { choiceId: selectedChoice.value };
 }
 
 export function getFailureMessage(reason) {

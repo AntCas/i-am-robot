@@ -3,7 +3,7 @@ import {
   createStartChallengeRequestBody,
   createSubmitChallengeRequestBody,
   formatRemainingSeconds,
-  getAnswerForChallengeType,
+  getAnswerForPrompt,
   getChallengeMarkup,
   getFailureMessage,
   getProgressLabel,
@@ -84,6 +84,7 @@ class RobotCheckWidget extends HTMLElement {
     this.verifyButton.disabled = true;
     this.state.sessionId = null;
     this.state.verificationSessionId = null;
+    this.state.challengePrompt = null;
     this.state.successfulChallenges = 0;
     this.state.requiredChallengesToPass = 1;
     this.state.verified = false;
@@ -97,7 +98,7 @@ class RobotCheckWidget extends HTMLElement {
     this.clearCountdownTimer();
     this.state.sessionId = null;
     this.state.verificationSessionId = null;
-    this.state.challengeType = null;
+    this.state.challengePrompt = null;
     this.state.deadlineAt = null;
     this.state.verified = false;
     this.state.resultToken = null;
@@ -130,7 +131,7 @@ class RobotCheckWidget extends HTMLElement {
       return;
     }
 
-    const answer = getAnswerForChallengeType(this, this.state.challengeType);
+    const answer = getAnswerForPrompt(this, this.state.challengePrompt);
     if (!answer) {
       this.showErrorMessage("Choose or enter an answer first.");
       return;
@@ -197,10 +198,10 @@ class RobotCheckWidget extends HTMLElement {
 
       this.state.sessionId = responseData.sessionId;
       this.state.verificationSessionId = responseData.verificationSessionId;
-      this.state.challengeType = responseData.challenge.type;
+      this.state.challengePrompt = responseData.challenge.prompt;
       this.state.deadlineAt = responseData.deadlineAt;
       this.applyVerificationProgress(responseData);
-      this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.type, responseData.challenge.prompt);
+      this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.prompt);
       this.challengeTypeElement.textContent = getProgressLabel(
         this.state.successfulChallenges,
         this.state.requiredChallengesToPass,
