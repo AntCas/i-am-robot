@@ -527,6 +527,7 @@
         "required": [
           "verificationSessionId",
           "verification",
+          "apiDocsUrl",
           "sessionId",
           "challenge",
           "issuedAt",
@@ -538,6 +539,11 @@
           },
           "verification": {
             "$ref": "#/components/schemas/VerificationProgress"
+          },
+          "apiDocsUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Absolute URL for the hosted API documentation."
           },
           "sessionId": {
             "type": "string"

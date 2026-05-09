@@ -111,6 +111,7 @@ test("verification uses the server-configured multi-challenge policy before issu
 
 			assert.equal(startData.verification.requiredChallengesToPass, 3);
 			assert.equal(startData.verification.successfulChallenges, round - 1);
+			assert.equal(startData.apiDocsUrl, "https://robot.example/im-a-robot/docs");
 			assert.ok(startData.challenge?.prompt);
 			assert.ok(typeof startData.challenge.prompt.answerFormat === "string");
 			assert.ok(typeof startData.challenge.prompt.instruction === "string");

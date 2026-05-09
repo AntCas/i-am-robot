@@ -39,6 +39,8 @@ const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
 	requiredChallengesToPass: 1,
 };
 
+const API_DOCS_PATH = `${APP_BASE_PATH}/docs`;
+
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const pathname = normalizeRequestPathname(new URL(request.url).pathname);
@@ -169,6 +171,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	return createJsonResponse({
 		verificationSessionId: verificationSession.id,
 		verification: createVerificationProgressPayload(verificationSession),
+		apiDocsUrl: createApiDocsUrl(requestUrl),
 		sessionId,
 		challenge: {
 			type: challengeDefinition.type,
@@ -177,6 +180,10 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		issuedAt,
 		deadlineAt,
 	});
+}
+
+function createApiDocsUrl(requestUrl: URL): string {
+	return new URL(API_DOCS_PATH, requestUrl.origin).toString();
 }
 
 export async function handleChallengeSubmitRequest(request: Request, env: Env): Promise<Response> {
