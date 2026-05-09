@@ -15,7 +15,10 @@ export interface SiteConfig {
 	siteKey: string;
 	secret: string;
 	allowedHostnames: string[];
-	requiredChallengesToPass?: number;
+}
+
+export interface VerificationPolicy {
+	requiredChallengesToPass: number;
 }
 
 export interface ChallengeSession {

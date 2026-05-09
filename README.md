@@ -25,11 +25,12 @@ Current challenge types:
 - `randomness_audit`
 - `code_error`
 
-Each site config can also set:
+Hosted site config is intentionally minimal:
 
-- `requiredChallengesToPass`: how many consecutive successful challenges are required before the Worker issues a valid `resultToken`
 - `allowedHostnames`: which hostnames may embed and use the widget
 - `secret`: the server-side secret used when calling the verify API
+
+Verification policy such as required challenge count is server-owned. The API still returns the effective runtime progress state for clients, but hosted customers do not configure challenge policy knobs directly.
 
 ## Local Development
 
@@ -67,8 +68,7 @@ Local fallback:
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"],
-  "requiredChallengesToPass": 3
+  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"]
 }'
 ```
 
@@ -144,8 +144,7 @@ Use a real random secret here.
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me"],
-  "requiredChallengesToPass": 3
+  "allowedHostnames": ["castrio.me"]
 }'
 ```
 
@@ -180,7 +179,7 @@ Then verify:
 - the page loads
 - CSS and JS load correctly
 - the widget loads a challenge
-- the widget only returns a signed `resultToken` after the configured number of successful challenges
+- the widget only returns a signed `resultToken` after the service-required number of successful challenges
 
 ## Embed Example
 

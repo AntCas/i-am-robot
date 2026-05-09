@@ -26,6 +26,7 @@ import type {
 	StartRequestBody,
 	SubmitRequestBody,
 	VerifyRequestBody,
+	VerificationPolicy,
 	VerificationSession,
 } from "./types";
 
@@ -95,6 +96,12 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		return createJsonErrorResponse("hostname_not_allowed", 403);
 	}
 
+	const verificationPolicy = resolveVerificationPolicy({
+		siteConfig,
+		hostname,
+		mode: verificationMode,
+	});
+
 	const verificationSession = verificationSessionId
 		? await loadVerificationSession(env, verificationSessionId)
 		: createActiveVerificationSession({
@@ -102,7 +109,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 				siteKey,
 				hostname,
 				issuedAt: new Date().toISOString(),
-				requiredChallengesToPass: getRequiredChallengesToPass(siteConfig),
+				requiredChallengesToPass: verificationPolicy.requiredChallengesToPass,
 			});
 
 	if (!verificationSession) {
@@ -522,14 +529,14 @@ function createVerificationProgressPayload(session: VerificationSession): {
 	};
 }
 
-function getRequiredChallengesToPass(siteConfig: SiteConfig): number {
-	const configuredValue = siteConfig.requiredChallengesToPass;
-
-	if (!Number.isInteger(configuredValue) || !configuredValue) {
-		return 3;
-	}
-
-	return Math.max(1, configuredValue);
+function resolveVerificationPolicy(args: {
+	siteConfig: SiteConfig;
+	hostname: string;
+	mode: "prove_robot";
+}): VerificationPolicy {
+	return {
+		requiredChallengesToPass: 3,
+	};
 }
 
 function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfig: SiteConfig | null): SiteConfig {
@@ -540,16 +547,9 @@ function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfi
 	return {
 		...siteConfig,
 		allowedHostnames: Array.from(new Set([...siteConfig.allowedHostnames, ...defaultSiteConfig.allowedHostnames])),
-		requiredChallengesToPass: siteConfig.requiredChallengesToPass ?? defaultSiteConfig.requiredChallengesToPass,
 	};
 }
 
 function isValidSiteConfig(siteConfig: SiteConfig): boolean {
-	return Boolean(
-		siteConfig.siteKey &&
-			siteConfig.secret &&
-			Array.isArray(siteConfig.allowedHostnames) &&
-			(siteConfig.requiredChallengesToPass === undefined ||
-				(Number.isInteger(siteConfig.requiredChallengesToPass) && siteConfig.requiredChallengesToPass >= 1)),
-	);
+	return Boolean(siteConfig.siteKey && siteConfig.secret && Array.isArray(siteConfig.allowedHostnames));
 }
