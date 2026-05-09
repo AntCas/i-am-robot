@@ -1,7 +1,8 @@
-import type { ChallengeDefinition, ChallengeType, ResultTokenPayload } from "../types";
-import { codeErrorChallenge } from "./_code-error";
-import { randomnessAuditChallenge } from "./_randomness-audit";
-import { timedMathChallenge } from "./_timed-math";
+import type { ChallengeDefinition, ChallengeType, ResultTokenPayload } from "../types.ts";
+import { chessPuzzleChallenge } from "./_chess-puzzle.ts";
+import { codeErrorChallenge } from "./_code-error.ts";
+import { randomnessAuditChallenge } from "./_randomness-audit.ts";
+import { timedMathChallenge } from "./_timed-math.ts";
 
 // This module keeps the challenge registry shallow so future add/remove work
 // is just a file plus one registry line.
@@ -15,6 +16,7 @@ export const challengeDefinitions: ChallengeDefinition[] = [
 	timedMathChallenge,
 	randomnessAuditChallenge,
 	codeErrorChallenge,
+	chessPuzzleChallenge,
 ];
 
 export function getChallengeDefinitionByType(type: ChallengeType): ChallengeDefinition {

@@ -15,6 +15,8 @@ import {
   MAX_FAILURES,
 } from "./widget-logic.js";
 
+const chessBoardComponentReady = loadChessBoardComponent();
+
 class RobotCheckWidget extends HTMLElement {
   connectedCallback() {
     if (this.dataset.rendered === "true") {
@@ -202,6 +204,9 @@ class RobotCheckWidget extends HTMLElement {
       this.state.deadlineAt = responseData.deadlineAt;
       this.applyVerificationProgress(responseData);
       this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.prompt);
+      if (responseData.challenge.prompt.kind === "chess_puzzle") {
+        await chessBoardComponentReady;
+      }
       this.challengeTypeElement.textContent = getProgressLabel(
         this.state.successfulChallenges,
         this.state.requiredChallengesToPass,
@@ -344,3 +349,21 @@ class RobotCheckWidget extends HTMLElement {
 }
 
 customElements.define("robot-check-widget", RobotCheckWidget);
+
+async function loadChessBoardComponent() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (customElements.get("chess-board")) {
+    return true;
+  }
+
+  try {
+    await import("https://unpkg.com/chessboard-element?module");
+    return true;
+  } catch (error) {
+    console.warn("Could not load chessboard-element", error);
+    return false;
+  }
+}

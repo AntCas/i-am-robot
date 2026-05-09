@@ -9,8 +9,8 @@ export interface Env {
 
 export type Verdict = "robot" | "human" | "failed";
 export type SessionStatus = "issued" | "completed" | "expired";
-export type ChallengeType = "timed_math" | "randomness_audit" | "code_error";
-export type ChallengeAnswerFormat = "integer" | "choice_id";
+export type ChallengeType = "timed_math" | "randomness_audit" | "code_error" | "chess_puzzle";
+export type ChallengeAnswerFormat = "integer" | "choice_id" | "san";
 
 export interface SiteConfig {
 	siteKey: string;
@@ -48,7 +48,21 @@ export interface MultipleChoiceChallengePrompt {
 	choices: ChallengeChoice[];
 }
 
-export type ChallengePrompt = ShortTextChallengePrompt | MultipleChoiceChallengePrompt;
+export interface ChessPuzzleChallengePrompt {
+	kind: "chess_puzzle";
+	answerFormat: "san";
+	instruction: string;
+	body: string;
+	inputLabel: string;
+	fen: string;
+	orientation: "white" | "black";
+	placeholder?: string;
+}
+
+export type ChallengePrompt =
+	| ShortTextChallengePrompt
+	| MultipleChoiceChallengePrompt
+	| ChessPuzzleChallengePrompt;
 
 export interface IntegerChallengeGradingKey {
 	answerFormat: "integer";
@@ -60,7 +74,15 @@ export interface ChoiceChallengeGradingKey {
 	expectedChoiceId: string;
 }
 
-export type ChallengeGradingKey = IntegerChallengeGradingKey | ChoiceChallengeGradingKey;
+export interface SanChallengeGradingKey {
+	answerFormat: "san";
+	expectedSan: string;
+}
+
+export type ChallengeGradingKey =
+	| IntegerChallengeGradingKey
+	| ChoiceChallengeGradingKey
+	| SanChallengeGradingKey;
 
 export interface IntegerChallengeAnswer {
 	value: string;

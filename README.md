@@ -24,6 +24,7 @@ Current challenge types:
 - `timed_math`
 - `randomness_audit`
 - `code_error`
+- `chess_puzzle`
 
 Hosted site config is intentionally minimal:
 
@@ -206,6 +207,10 @@ Optional widget attributes:
 - `app-base-path`: base path where the Worker is mounted; defaults to `/im-a-robot` when embedded under that path and `""` otherwise
 - `privacy-path`: override for the Privacy link
 - `terms-path`: override for the Terms link
+
+The chess puzzle prompt uses FEN for the board position and expects the answer
+as SAN such as `Ra8#` or `Qxg7#`. The frontend renders those positions with the
+open-source MIT-licensed `chessboard-element` web component loaded from unpkg.
 
 When verification completes, the widget dispatches a bubbling `robot-verification-passed` event with:
 

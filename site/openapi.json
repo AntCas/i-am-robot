@@ -304,7 +304,7 @@
       },
       "ChallengeType": {
         "type": "string",
-        "enum": ["timed_math", "randomness_audit", "code_error"]
+        "enum": ["timed_math", "randomness_audit", "code_error", "chess_puzzle"]
       },
       "Verdict": {
         "type": "string",
@@ -458,6 +458,48 @@
           }
         }
       },
+      "ChessPuzzleChallengePrompt": {
+        "type": "object",
+        "required": [
+          "kind",
+          "answerFormat",
+          "instruction",
+          "body",
+          "inputLabel",
+          "fen",
+          "orientation"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "chess_puzzle"
+          },
+          "answerFormat": {
+            "type": "string",
+            "const": "san"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "inputLabel": {
+            "type": "string"
+          },
+          "fen": {
+            "type": "string",
+            "description": "Puzzle position in Forsyth-Edwards Notation."
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["white", "black"]
+          },
+          "placeholder": {
+            "type": "string"
+          }
+        }
+      },
       "ChallengeDescriptor": {
         "type": "object",
         "required": ["type", "prompt"],
@@ -472,6 +514,9 @@
               },
               {
                 "$ref": "#/components/schemas/MultipleChoiceChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/ChessPuzzleChallengePrompt"
               }
             ]
           }
@@ -517,6 +562,9 @@
           },
           {
             "$ref": "#/components/schemas/ChoiceChallengeAnswer"
+          },
+          {
+            "$ref": "#/components/schemas/SanChallengeAnswer"
           }
         ]
       },
@@ -535,6 +583,16 @@
         "properties": {
           "choiceId": {
             "type": "string"
+          }
+        }
+      },
+      "SanChallengeAnswer": {
+        "type": "object",
+        "required": ["value"],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The proposed move in standard algebraic notation, for example Qh7#."
           }
         }
       },

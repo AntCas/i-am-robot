@@ -140,6 +140,36 @@ export function getChallengeMarkup(prompt) {
     `;
   }
 
+  if (prompt.kind === "chess_puzzle") {
+    return `
+      <div class="challenge-block">
+        <p>${escapeHtml(prompt.instruction)}</p>
+        <p>${escapeHtml(prompt.body)}</p>
+        <div class="chess-puzzle-layout">
+          <chess-board
+            class="challenge-chess-board"
+            position="${escapeHtml(prompt.fen)}"
+            orientation="${escapeHtml(prompt.orientation)}"
+          ></chess-board>
+          <div class="chess-puzzle-copy">
+            <label>
+              ${escapeHtml(prompt.inputLabel)}
+              <input
+                type="text"
+                id="widget-answer-input"
+                autocomplete="off"
+                spellcheck="false"
+                autocapitalize="off"
+                ${prompt.placeholder ? `placeholder="${escapeHtml(prompt.placeholder)}"` : ""}
+              >
+            </label>
+            <p class="muted chess-fen">FEN: <code>${escapeHtml(prompt.fen)}</code></p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   if (prompt.kind === "multiple_choice") {
     const containerClass = prompt.layout === "grid" ? "choice-grid" : "choice-list";
     const itemClass = prompt.layout === "grid" ? "choice-card" : "choice-line";
@@ -173,7 +203,7 @@ export function getAnswerForPrompt(rootElement, prompt) {
     return null;
   }
 
-  if (prompt.kind === "short_text") {
+  if (prompt.kind === "short_text" || prompt.kind === "chess_puzzle") {
     const answerInput = rootElement.querySelector("#widget-answer-input");
     return { value: answerInput?.value?.trim() ?? "" };
   }
