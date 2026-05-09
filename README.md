@@ -13,6 +13,8 @@ The app deploys as a single Worker that:
 Production URLs:
 
 - App page: `https://castrio.me/im-a-robot`
+- API docs page: `https://castrio.me/im-a-robot/docs`
+- OpenAPI JSON: `https://castrio.me/im-a-robot/openapi.json`
 - API start: `https://castrio.me/im-a-robot/api/challenge/start`
 - API submit: `https://castrio.me/im-a-robot/api/challenge/submit`
 - API verify: `https://castrio.me/im-a-robot/api/verify`
@@ -238,191 +240,19 @@ Example host-page integration:
 </script>
 ```
 
-## API Examples
+## API Docs
 
-### `POST /im-a-robot/api/challenge/start`
+The canonical API contract lives in [site/openapi.json](/Users/primaryuser/Desktop/i-am-robot/site/openapi.json).
 
-```json
-{
-  "siteKey": "site_demo_123",
-  "hostname": "castrio.me",
-  "mode": "prove_robot",
-  "verificationSessionId": "vfy_..."
-}
-```
+Use the rendered docs page for endpoint details, schemas, examples, and response shapes:
 
-Notes:
+- Local: [http://127.0.0.1:8787/im-a-robot/docs](http://127.0.0.1:8787/im-a-robot/docs)
+- Production: [https://castrio.me/im-a-robot/docs](https://castrio.me/im-a-robot/docs)
 
-- `siteKey` is required.
-- `mode` currently must be `prove_robot`.
-- `verificationSessionId` is optional on the first request and should be sent on later rounds to continue the same verification session.
-- `hostname` is normally sent by the widget as `window.location.host`.
+The raw OpenAPI document is also available at:
 
-Success response:
-
-```json
-{
-  "verificationSessionId": "vfy_123",
-  "verification": {
-    "successfulChallenges": 0,
-    "requiredChallengesToPass": 3,
-    "remainingChallenges": 3,
-    "status": "active"
-  },
-  "sessionId": "sess_123",
-  "challenge": {
-    "type": "code_error",
-    "prompt": {
-      "description": "Find the bug",
-      "code": "for (let i = 0; i <= items.length; i += 1) {}",
-      "choices": [
-        { "label": "Off-by-one loop", "value": "off_by_one" }
-      ]
-    }
-  },
-  "issuedAt": "2026-05-09T12:34:56.000Z",
-  "deadlineAt": "2026-05-09T12:35:04.000Z"
-}
-```
-
-Common errors:
-
-- `400 invalid_site_key`
-- `400 invalid_mode`
-- `400 invalid_hostname`
-- `403 hostname_not_allowed`
-- `404 invalid_site_key`
-- `404 verification_session_not_found`
-- `409 invalid_verification_session`
-- `409 verification_session_closed`
-
-### `POST /im-a-robot/api/challenge/submit`
-
-```json
-{
-  "sessionId": "sess_...",
-  "answer": {
-    "value": "off_by_one"
-  }
-}
-```
-
-Notes:
-
-- `sessionId` is required.
-- `answer` is challenge-specific. The widget always sends an object with a `value` field.
-
-Failure response:
-
-```json
-{
-  "success": false,
-  "verdict": "failed",
-  "reason": "incorrect_answer",
-  "completedAt": "2026-05-09T12:35:01.000Z",
-  "verificationSessionId": "vfy_123",
-  "verification": {
-    "successfulChallenges": 0,
-    "requiredChallengesToPass": 3,
-    "remainingChallenges": 3,
-    "status": "failed"
-  }
-}
-```
-
-Intermediate success response:
-
-```json
-{
-  "success": true,
-  "verified": false,
-  "verdict": "robot",
-  "score": 1,
-  "completedAt": "2026-05-09T12:35:01.000Z",
-  "verificationSessionId": "vfy_123",
-  "verification": {
-    "successfulChallenges": 1,
-    "requiredChallengesToPass": 3,
-    "remainingChallenges": 2,
-    "status": "active"
-  }
-}
-```
-
-Final success response:
-
-```json
-{
-  "success": true,
-  "verified": true,
-  "verdict": "robot",
-  "score": 1,
-  "verificationSessionId": "vfy_123",
-  "verification": {
-    "successfulChallenges": 3,
-    "requiredChallengesToPass": 3,
-    "remainingChallenges": 0,
-    "status": "completed"
-  },
-  "resultToken": "header.payload.signature",
-  "completedAt": "2026-05-09T12:35:01.000Z",
-  "expiresAt": "2026-05-09T12:40:01.000Z"
-}
-```
-
-Common errors:
-
-- `400 session_not_found`
-- `404 session_not_found`
-- `404 verification_session_not_found`
-- `409 session_already_completed`
-- `409 verification_session_closed`
-- `500 missing_signing_secret`
-
-### `POST /im-a-robot/api/verify`
-
-```json
-{
-  "secret": "secret_demo_abc",
-  "resultToken": "header.payload.signature"
-}
-```
-
-This endpoint is intended for your backend, not the browser widget. A client page should pass the `resultToken` to your server, and your server should call this endpoint with the site secret.
-
-Success response:
-
-```json
-{
-  "success": true,
-  "verdict": "robot",
-  "challengeType": "code_error",
-  "score": 1,
-  "hostname": "castrio.me",
-  "issuedAt": "2026-05-09T12:34:56.000Z",
-  "completedAt": "2026-05-09T12:35:01.000Z"
-}
-```
-
-Common errors:
-
-- `400 invalid_secret`
-- `400 invalid_result_token`
-- `401 invalid_secret`
-- `401 invalid_result_token`
-- `404 verification_session_not_found`
-- `404 session_not_found`
-- `500 missing_signing_secret`
-
-### `GET /im-a-robot/health`
-
-Success response:
-
-```json
-{
-  "ok": true
-}
-```
+- Local: [http://127.0.0.1:8787/im-a-robot/openapi.json](http://127.0.0.1:8787/im-a-robot/openapi.json)
+- Production: [https://castrio.me/im-a-robot/openapi.json](https://castrio.me/im-a-robot/openapi.json)
 
 ## Notes
 

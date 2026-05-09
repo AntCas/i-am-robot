@@ -5,11 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>I'm a robot</title>
   <link rel="stylesheet" href="/im-a-robot/styles.css">
+  <style>
+    .landing-links {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .landing-links a {
+      color: #17324d;
+      font: 600 0.95rem/1.2 "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(23, 50, 77, 0.25);
+      padding-bottom: 2px;
+    }
+  </style>
 </head>
 <body>
   <main class="landing-page">
     <section class="widget-shell">
       <robot-check-widget site-key="site_demo_123" app-base-path="/im-a-robot"></robot-check-widget>
+      <div class="landing-links">
+        <a href="/im-a-robot/docs">API Docs</a>
+      </div>
     </section>
   </main>
 

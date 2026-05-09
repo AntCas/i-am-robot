@@ -1,0 +1,741 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "I Am Robot API",
+    "version": "1.0.0",
+    "summary": "Server-backed verification widget and token verification API.",
+    "description": "OpenAPI contract for the I Am Robot Cloudflare Worker. The widget uses the challenge endpoints from the browser, then your backend verifies the returned result token with the verify endpoint."
+  },
+  "servers": [
+    {
+      "url": "/im-a-robot",
+      "description": "Path-mounted production deployment"
+    },
+    {
+      "url": "",
+      "description": "Root-mounted local or alternate deployment"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Challenges",
+      "description": "Endpoints used by the browser widget to start and submit challenge rounds."
+    },
+    {
+      "name": "Verification",
+      "description": "Backend-facing token verification endpoint."
+    },
+    {
+      "name": "Health",
+      "description": "Operational health endpoint."
+    }
+  ],
+  "paths": {
+    "/api/challenge/start": {
+      "post": {
+        "tags": ["Challenges"],
+        "summary": "Start or continue a verification session",
+        "description": "Creates a new verification session or resumes an active one, then issues a fresh challenge session with a time limit.",
+        "operationId": "startChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChallengeStartRequest"
+              },
+              "examples": {
+                "default": {
+                  "value": {
+                    "siteKey": "site_demo_123",
+                    "hostname": "castrio.me",
+                    "mode": "prove_robot"
+                  }
+                },
+                "resume": {
+                  "value": {
+                    "siteKey": "site_demo_123",
+                    "hostname": "castrio.me",
+                    "mode": "prove_robot",
+                    "verificationSessionId": "vfy_1234567890abcdef"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChallengeStartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input such as missing site key, invalid hostname, or unsupported mode.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Hostname is not allowed for the site key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown site key or verification session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Verification session conflict or closed session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/challenge/submit": {
+      "post": {
+        "tags": ["Challenges"],
+        "summary": "Submit an answer for one challenge session",
+        "description": "Grades the supplied answer. Depending on the outcome, the verification session fails, advances to the next round, or completes and returns a signed result token.",
+        "operationId": "submitChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChallengeSubmitRequest"
+              },
+              "examples": {
+                "default": {
+                  "value": {
+                    "sessionId": "sess_1234567890abcdef",
+                    "answer": {
+                      "value": "off_by_one"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge graded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChallengeSubmitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing session identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown challenge or verification session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session was already completed or verification session is closed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Signing secret is missing from worker configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/verify": {
+      "post": {
+        "tags": ["Verification"],
+        "summary": "Verify a signed result token",
+        "description": "Server-to-server endpoint for your backend. Validates the token signature, site secret, and corresponding challenge and verification session records.",
+        "operationId": "verifyResultToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRequest"
+              },
+              "examples": {
+                "default": {
+                  "value": {
+                    "secret": "secret_demo_abc",
+                    "resultToken": "header.payload.signature"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token is valid and corresponds to a completed verification flow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing secret or token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid secret or invalid result token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced verification or challenge session could not be found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Signing secret is missing from worker configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Worker is responding.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Mode": {
+        "type": "string",
+        "enum": ["prove_robot"]
+      },
+      "ChallengeType": {
+        "type": "string",
+        "enum": ["timed_math", "randomness_audit", "code_error"]
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": ["robot", "human", "failed"]
+      },
+      "VerificationStatus": {
+        "type": "string",
+        "enum": ["active", "completed", "failed"]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "invalid_site_key",
+          "invalid_mode",
+          "invalid_hostname",
+          "hostname_not_allowed",
+          "verification_session_not_found",
+          "invalid_verification_session",
+          "verification_session_closed",
+          "session_not_found",
+          "session_already_completed",
+          "missing_signing_secret",
+          "invalid_secret",
+          "invalid_result_token",
+          "internal_error",
+          "not_found"
+        ]
+      },
+      "VerificationProgress": {
+        "type": "object",
+        "required": [
+          "successfulChallenges",
+          "requiredChallengesToPass",
+          "remainingChallenges",
+          "status"
+        ],
+        "properties": {
+          "successfulChallenges": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "requiredChallengesToPass": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "remainingChallenges": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          }
+        }
+      },
+      "ChallengeStartRequest": {
+        "type": "object",
+        "required": ["siteKey", "hostname"],
+        "properties": {
+          "siteKey": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "Usually sent as window.location.host by the widget."
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode",
+            "default": "prove_robot"
+          },
+          "verificationSessionId": {
+            "type": "string",
+            "description": "Send this to continue an active multi-round verification flow."
+          }
+        }
+      },
+      "TimedMathPrompt": {
+        "type": "object",
+        "required": ["question", "answerFormat"],
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answerFormat": {
+            "type": "string",
+            "enum": ["integer"]
+          }
+        }
+      },
+      "RandomnessAuditChoice": {
+        "type": "object",
+        "required": ["label", "bits"],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "bits": {
+            "type": "string"
+          }
+        }
+      },
+      "RandomnessAuditPrompt": {
+        "type": "object",
+        "required": ["description", "choices"],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RandomnessAuditChoice"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          }
+        }
+      },
+      "CodeErrorChoice": {
+        "type": "object",
+        "required": ["label", "value"],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "enum": ["mutates_input", "off_by_one", "wrong_divisor", "const_sum"]
+          }
+        }
+      },
+      "CodeErrorPrompt": {
+        "type": "object",
+        "required": ["description", "code", "choices"],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CodeErrorChoice"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          }
+        }
+      },
+      "ChallengeDescriptor": {
+        "type": "object",
+        "required": ["type", "prompt"],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ChallengeType"
+          },
+          "prompt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimedMathPrompt"
+              },
+              {
+                "$ref": "#/components/schemas/RandomnessAuditPrompt"
+              },
+              {
+                "$ref": "#/components/schemas/CodeErrorPrompt"
+              }
+            ]
+          }
+        }
+      },
+      "ChallengeStartResponse": {
+        "type": "object",
+        "required": [
+          "verificationSessionId",
+          "verification",
+          "sessionId",
+          "challenge",
+          "issuedAt",
+          "deadlineAt"
+        ],
+        "properties": {
+          "verificationSessionId": {
+            "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/VerificationProgress"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "challenge": {
+            "$ref": "#/components/schemas/ChallengeDescriptor"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deadlineAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ChallengeAnswer": {
+        "type": "object",
+        "required": ["value"],
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "ChallengeSubmitRequest": {
+        "type": "object",
+        "required": ["sessionId", "answer"],
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "answer": {
+            "$ref": "#/components/schemas/ChallengeAnswer"
+          }
+        }
+      },
+      "ChallengeSubmitFailedResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "verdict",
+          "reason",
+          "completedAt",
+          "verificationSessionId",
+          "verification"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "verdict": {
+            "type": "string",
+            "const": "failed"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verificationSessionId": {
+            "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/VerificationProgress"
+          }
+        }
+      },
+      "ChallengeSubmitAdvancedResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "verified",
+          "verdict",
+          "score",
+          "completedAt",
+          "verificationSessionId",
+          "verification"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "verified": {
+            "type": "boolean",
+            "const": false
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "score": {
+            "type": "number"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verificationSessionId": {
+            "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/VerificationProgress"
+          }
+        }
+      },
+      "ChallengeSubmitVerifiedResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "verified",
+          "verdict",
+          "score",
+          "verificationSessionId",
+          "verification",
+          "resultToken",
+          "completedAt",
+          "expiresAt"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "verified": {
+            "type": "boolean",
+            "const": true
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "score": {
+            "type": "number"
+          },
+          "verificationSessionId": {
+            "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/VerificationProgress"
+          },
+          "resultToken": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ChallengeSubmitResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ChallengeSubmitFailedResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ChallengeSubmitAdvancedResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ChallengeSubmitVerifiedResponse"
+          }
+        ]
+      },
+      "VerifyRequest": {
+        "type": "object",
+        "required": ["secret", "resultToken"],
+        "properties": {
+          "secret": {
+            "type": "string"
+          },
+          "resultToken": {
+            "type": "string"
+          }
+        }
+      },
+      "VerifyResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "verdict",
+          "challengeType",
+          "score",
+          "hostname",
+          "issuedAt",
+          "completedAt"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "challengeType": {
+            "$ref": "#/components/schemas/ChallengeType"
+          },
+          "score": {
+            "type": "number"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["success", "error"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorCode"
+          }
+        }
+      }
+    }
+  }
+}

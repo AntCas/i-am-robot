@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>I Am Robot API Docs</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #ffffff;
+    }
+
+    body {
+      font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    #redoc-container {
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="redoc-container"></div>
+
+  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      if (!window.Redoc) {
+        return;
+      }
+
+      window.Redoc.init("/im-a-robot/openapi.json", {
+        hideDownloadButton: false,
+        expandResponses: "200,400,401,403,404,409,500",
+        pathInMiddlePanel: true,
+        requiredPropsFirst: true,
+        sortPropsAlphabetically: false,
+        theme: {
+          colors: {
+            primary: {
+              main: "#1565c0"
+            }
+          },
+          typography: {
+            fontFamily: "\"IBM Plex Sans\", \"Avenir Next\", \"Segoe UI\", sans-serif",
+            headings: {
+              fontFamily: "\"IBM Plex Sans\", \"Avenir Next\", \"Segoe UI\", sans-serif",
+              fontWeight: "700"
+            },
+            code: {
+              fontFamily: "\"IBM Plex Mono\", \"SFMono-Regular\", monospace"
+            }
+          }
+        }
+      }, document.getElementById("redoc-container"));
+    });
+  </script>
+</body>
+</html>
