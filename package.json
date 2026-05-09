@@ -8,6 +8,7 @@
     "cf:bootstrap": "bash scripts/bootstrap-cloudflare.sh",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "login": "wrangler login",
     "test": "node --test src/**/*.test.ts site/**/*.test.ts"
   },
   "devDependencies": {

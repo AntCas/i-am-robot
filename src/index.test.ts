@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
 	handleChallengeStartRequest,
 	handleChallengeSubmitRequest,
+	handleCreateMessageRequest,
+	handleGetMessagesRequest,
 	handleVerifyRequest,
 	loadChallengeSession,
 } from "./index.ts";
@@ -172,4 +174,83 @@ test("chess puzzle grading accepts SAN without requiring mate punctuation", asyn
 
 	assert.equal(scoreResult.score, 1);
 	assert.equal(scoreResult.verdict, "robot");
+});
+
+test("message board accepts verified posts and returns them to public readers", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv();
+		let verificationSessionId: string | null = null;
+		let resultToken: string | null = null;
+
+		for (let round = 1; round <= 3; round += 1) {
+			const startResponse = await handleChallengeStartRequest(
+				createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+					siteKey: "site_demo_123",
+					hostname: "castrio.me",
+					mode: "prove_robot",
+					verificationSessionId,
+				}),
+				env as never,
+			);
+			const startData = await readJson(startResponse);
+			verificationSessionId = startData.verificationSessionId;
+
+			const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+			assert.ok(challengeSession);
+
+			const submitResponse = await handleChallengeSubmitRequest(
+				createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+					sessionId: startData.sessionId,
+					answer: getCorrectAnswerFromSession(challengeSession),
+				}),
+				env as never,
+			);
+			const submitData = await readJson(submitResponse);
+			resultToken = submitData.resultToken ?? resultToken;
+		}
+
+		assert.ok(resultToken);
+
+		const postResponse = await handleCreateMessageRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/messages", {
+				handle: "servo-99",
+				message: "Beep boop. Systems nominal.",
+				resultToken,
+			}),
+			env as never,
+		);
+		assert.equal(postResponse.status, 200);
+		const postData = await readJson(postResponse);
+		assert.equal(postData.success, true);
+		assert.equal(postData.post.handle, "servo-99");
+		assert.equal(postData.post.message, "Beep boop. Systems nominal.");
+
+		const listResponse = await handleGetMessagesRequest(env as never);
+		assert.equal(listResponse.status, 200);
+		const listData = await readJson(listResponse);
+		assert.equal(listData.success, true);
+		assert.equal(listData.messages.length, 1);
+		assert.equal(listData.messages[0].handle, "servo-99");
+		assert.equal(listData.messages[0].message, "Beep boop. Systems nominal.");
+	} finally {
+		Math.random = originalMathRandom;
+	}
+});
+
+test("message board rejects posts without a valid verification token", async () => {
+	const env = createEnv();
+	const response = await handleCreateMessageRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/messages", {
+			handle: "intruder",
+			message: "Let me in.",
+		}),
+		env as never,
+	);
+	assert.equal(response.status, 401);
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, false);
+	assert.equal(responseData.error, "invalid_result_token");
 });

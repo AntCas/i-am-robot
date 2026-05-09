@@ -32,5 +32,10 @@
   </main>
 
   <script type="module" src="/im-a-robot/widget.js"></script>
+  <script>
+    document.addEventListener("robot-verification-passed", () => {
+      window.location.assign("/im-a-robot/message-board");
+    });
+  </script>
 </body>
 </html>

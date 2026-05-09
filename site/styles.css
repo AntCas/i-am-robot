@@ -37,6 +37,11 @@ body {
   padding: 3rem 0 4rem;
 }
 
+.message-board-page {
+  display: grid;
+  gap: 2rem;
+}
+
 .widget-shell {
   width: min(100%, 640px);
   margin: 0 auto;
@@ -74,6 +79,100 @@ body {
 
 .muted {
   color: var(--muted);
+}
+
+.message-board-intro {
+  margin: -1rem 0 0;
+  max-width: 42rem;
+}
+
+.message-board-composer,
+.message-board-list-section {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid #d7dee8;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 40px rgba(23, 50, 77, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.message-board-auth,
+.message-board-form,
+.message-board-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.message-board-auth-copy,
+.message-board-list-header h2,
+.message-board-item p {
+  margin: 0;
+}
+
+.message-board-label {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.message-board-label input,
+.message-board-label textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #c9ced6;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+}
+
+.message-board-label textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+}
+
+.message-board-form-row,
+.message-board-list-header,
+.message-board-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.message-board-form-row {
+  align-items: flex-start;
+}
+
+.message-board-form-status {
+  margin: 0;
+  min-height: 1.25rem;
+}
+
+.message-board-form-error {
+  color: #b3261e;
+}
+
+.message-board-form-disabled {
+  opacity: 0.65;
+}
+
+.message-board-item {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #dce3ec;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 255, 0.95) 100%);
+}
+
+.message-board-item-meta {
+  flex-wrap: wrap;
+  color: #3d556d;
+  font-size: 0.92rem;
 }
 
 .widget-card {
@@ -464,5 +563,12 @@ body {
 
   .copy-page {
     padding: 2rem 0 3rem;
+  }
+
+  .message-board-form-row,
+  .message-board-list-header,
+  .message-board-item-meta {
+    align-items: start;
+    flex-direction: column;
   }
 }

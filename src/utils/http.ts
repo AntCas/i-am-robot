@@ -60,6 +60,10 @@ export function getStaticAssetPath(pathname: string): string | null {
 		return "/docs/index.html";
 	}
 
+	if (pathname === `${APP_BASE_PATH}/message-board` || pathname === `${APP_BASE_PATH}/message-board/`) {
+		return "/message-board/index.html";
+	}
+
 	if (pathname.startsWith(`${APP_BASE_PATH}/`)) {
 		return pathname.slice(APP_BASE_PATH.length);
 	}

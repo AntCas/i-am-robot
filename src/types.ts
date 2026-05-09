@@ -176,6 +176,12 @@ export interface VerifyRequestBody {
 	resultToken?: string;
 }
 
+export interface MessageBoardPostRequestBody {
+	message?: string;
+	handle?: string;
+	resultToken?: string;
+}
+
 export interface ResultTokenPayload {
 	tid: string;
 	vid: string;
@@ -187,4 +193,11 @@ export interface ResultTokenPayload {
 	score: number;
 	iat: number;
 	exp: number;
+}
+
+export interface MessageBoardPost {
+	id: string;
+	message: string;
+	handle: string;
+	postedAt: string;
 }

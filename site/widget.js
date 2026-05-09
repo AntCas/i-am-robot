@@ -16,6 +16,7 @@ import {
 } from "./widget-logic.js";
 
 const chessBoardComponentReady = loadChessBoardComponent();
+const VERIFICATION_STORAGE_KEY = "robot-check-verification";
 
 class RobotCheckWidget extends HTMLElement {
   connectedCallback() {
@@ -220,6 +221,7 @@ class RobotCheckWidget extends HTMLElement {
   }
 
   handleFailedVerification(reason) {
+    clearStoredVerification();
     this.state.attemptFailures += 1;
     this.checkbox.checked = false;
     this.showFailureState(getFailureMessage(reason), true);
@@ -251,6 +253,7 @@ class RobotCheckWidget extends HTMLElement {
   storeVerificationToken(resultToken, expiresAt) {
     this.state.resultToken = resultToken ?? null;
     this.state.resultTokenExpiresAt = expiresAt ?? null;
+    persistVerificationToken(this.state.resultToken, this.state.resultTokenExpiresAt);
   }
 
   showSuccessMessage(message) {
@@ -366,4 +369,23 @@ async function loadChessBoardComponent() {
     console.warn("Could not load chessboard-element", error);
     return false;
   }
+}
+
+function persistVerificationToken(resultToken, expiresAt) {
+  if (!resultToken || !expiresAt) {
+    clearStoredVerification();
+    return;
+  }
+
+  window.localStorage.setItem(
+    VERIFICATION_STORAGE_KEY,
+    JSON.stringify({
+      resultToken,
+      expiresAt,
+    }),
+  );
+}
+
+function clearStoredVerification() {
+  window.localStorage.removeItem(VERIFICATION_STORAGE_KEY);
 }

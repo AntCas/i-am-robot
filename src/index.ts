@@ -24,6 +24,9 @@ import type {
 	ChallengeGradingKey,
 	ChallengePrompt,
 	Env,
+	MessageBoardPost,
+	MessageBoardPostRequestBody,
+	ResultTokenPayload,
 	SiteConfig,
 	StartRequestBody,
 	SubmitRequestBody,
@@ -51,6 +54,14 @@ export default {
 
 			if (request.method === "POST" && isApiRequestPath(pathname, "/api/verify")) {
 				return await handleVerifyRequest(request, env);
+			}
+
+			if (request.method === "GET" && isApiRequestPath(pathname, "/api/messages")) {
+				return await handleGetMessagesRequest(env);
+			}
+
+			if (request.method === "POST" && isApiRequestPath(pathname, "/api/messages")) {
+				return await handleCreateMessageRequest(request, env);
 			}
 
 			if (request.method === "GET" && isHealthRequestPath(pathname)) {
@@ -355,6 +366,56 @@ export async function handleVerifyRequest(request: Request, env: Env): Promise<R
 	});
 }
 
+export async function handleGetMessagesRequest(env: Env): Promise<Response> {
+	const messages = await loadMessageBoardPosts(env);
+	return createJsonResponse({
+		success: true,
+		messages,
+	});
+}
+
+export async function handleCreateMessageRequest(request: Request, env: Env): Promise<Response> {
+	const requestBody = (await request.json()) as MessageBoardPostRequestBody;
+	const resultToken = requestBody.resultToken?.trim();
+	const message = requestBody.message?.trim();
+	const requestedHandle = requestBody.handle?.trim();
+	const signingSecret = getSigningSecret(env);
+
+	if (!resultToken) {
+		return createJsonErrorResponse("invalid_result_token", 401);
+	}
+
+	if (!message) {
+		return createJsonErrorResponse("invalid_message", 400);
+	}
+
+	if (message.length > 280) {
+		return createJsonErrorResponse("message_too_long", 400);
+	}
+
+	if (!signingSecret) {
+		return createJsonErrorResponse("missing_signing_secret", 500);
+	}
+
+	if (!(await loadVerifiedPostingTokenPayload(env, resultToken, signingSecret))) {
+		return createJsonErrorResponse("invalid_result_token", 401);
+	}
+
+	const post: MessageBoardPost = {
+		id: getRandomId("msg"),
+		message,
+		handle: normalizeMessageHandle(requestedHandle) ?? (await createAutomatedHandle(request)),
+		postedAt: new Date().toISOString(),
+	};
+
+	await saveMessageBoardPost(env, post);
+
+	return createJsonResponse({
+		success: true,
+		post,
+	});
+}
+
 export async function loadSiteConfig(env: Env, siteKey: string): Promise<SiteConfig | null> {
 	const siteFromKv = await env.SITES.get(`site:${siteKey}`, "json");
 	const defaultSiteConfig = parseDefaultSiteConfig(env.DEFAULT_SITE_CONFIG);
@@ -419,6 +480,29 @@ export async function saveVerificationSession(env: Env, session: VerificationSes
 	await env.SESSIONS.put(`verification:${session.id}`, JSON.stringify(session), {
 		expirationTtl: SESSION_TTL_SECONDS,
 	});
+}
+
+export async function loadMessageBoardPosts(env: Env): Promise<MessageBoardPost[]> {
+	const storedMessageIds = await env.SESSIONS.get("message-board:index", "json");
+	const messageIds = Array.isArray(storedMessageIds) ? storedMessageIds : [];
+	const storedMessages = await Promise.all(
+		messageIds.map(async (messageId) => {
+			const message = await env.SESSIONS.get(`message-board:message:${messageId}`, "json");
+			return (message as MessageBoardPost | null) ?? null;
+		}),
+	);
+
+	return storedMessages.filter((message): message is MessageBoardPost => Boolean(message));
+}
+
+export async function saveMessageBoardPost(env: Env, post: MessageBoardPost): Promise<void> {
+	const existingPosts = await loadMessageBoardPosts(env);
+	const nextPosts = [post, ...existingPosts];
+	await env.SESSIONS.put(`message-board:message:${post.id}`, JSON.stringify(post));
+	await env.SESSIONS.put(
+		"message-board:index",
+		JSON.stringify(nextPosts.map((message) => message.id)),
+	);
 }
 
 export function getSigningSecret(env: Env): string | null {
@@ -554,4 +638,58 @@ function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfi
 
 function isValidSiteConfig(siteConfig: SiteConfig): boolean {
 	return Boolean(siteConfig.siteKey && siteConfig.secret && Array.isArray(siteConfig.allowedHostnames));
+}
+
+async function loadVerifiedPostingTokenPayload(
+	env: Env,
+	resultToken: string,
+	signingSecret: string,
+): Promise<ResultTokenPayload | null> {
+	const verifiedTokenPayload = await verifyResultToken(resultToken, signingSecret);
+	if (!verifiedTokenPayload) {
+		return null;
+	}
+
+	const verificationSession = await loadVerificationSession(env, verifiedTokenPayload.vid);
+	if (!verificationSession) {
+		return null;
+	}
+
+	if (verificationSession.status !== "completed" || verificationSession.resultTokenId !== verifiedTokenPayload.tid) {
+		return null;
+	}
+
+	const session = await loadChallengeSession(env, verifiedTokenPayload.sid);
+	if (!session) {
+		return null;
+	}
+
+	if (
+		session.resultTokenId !== verifiedTokenPayload.tid ||
+		session.verificationSessionId !== verificationSession.id ||
+		verificationSession.successfulChallenges < verificationSession.requiredChallengesToPass
+	) {
+		return null;
+	}
+
+	return verifiedTokenPayload;
+}
+
+function normalizeMessageHandle(value?: string): string | null {
+	if (!value) {
+		return null;
+	}
+
+	const normalizedHandle = value.replace(/\s+/g, " ").trim().slice(0, 40);
+	return normalizedHandle || null;
+}
+
+async function createAutomatedHandle(request: Request): Promise<string> {
+	const ipAddress = request.headers.get("CF-Connecting-IP")?.trim() || "unknown-ip";
+	const userAgent = request.headers.get("User-Agent")?.trim() || "unknown-agent";
+	const digestBytes = new Uint8Array(
+		await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${ipAddress}|${userAgent}`)),
+	);
+	const fingerprint = Array.from(digestBytes.slice(0, 4), (value) => value.toString(16).padStart(2, "0")).join("");
+	return `unit-${fingerprint}`;
 }
