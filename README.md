@@ -26,12 +26,13 @@ Current challenge types:
 - `code_error`
 - `chess_puzzle`
 
-Hosted site config is intentionally minimal:
+Server-owned site config is intentionally minimal:
 
 - `allowedHostnames`: which hostnames may embed and use the widget
 - `secret`: the server-side secret used when calling the verify API
+- `verificationPolicy.requiredChallengesToPass`: how many successful challenges are required before a result token is issued
 
-Verification policy such as required challenge count is server-owned. The API still returns the effective runtime progress state for clients, but hosted customers do not configure challenge policy knobs directly.
+The widget does not decide this policy. The API returns the effective runtime progress state in the challenge start and submit responses, and the Worker only issues a valid `resultToken` after the server-required number of successful challenges.
 
 ## Local Development
 
@@ -69,7 +70,10 @@ Local fallback:
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"]
+  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"],
+  "verificationPolicy": {
+    "requiredChallengesToPass": 1
+  }
 }'
 ```
 
@@ -145,7 +149,10 @@ Use a real random secret here.
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me"]
+  "allowedHostnames": ["castrio.me"],
+  "verificationPolicy": {
+    "requiredChallengesToPass": 1
+  }
 }'
 ```
 

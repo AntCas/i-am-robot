@@ -16,6 +16,7 @@ export interface SiteConfig {
 	siteKey: string;
 	secret: string;
 	allowedHostnames: string[];
+	verificationPolicy?: VerificationPolicy;
 }
 
 export interface VerificationPolicy {

@@ -155,7 +155,10 @@ class RobotCheckWidget extends HTMLElement {
         return;
       }
 
-      this.applyVerificationProgress(responseData);
+      if (!this.applyVerificationProgress(responseData)) {
+        this.showErrorMessage("Could not verify challenge progress.");
+        return;
+      }
       this.updateProgressBar();
 
       if (responseData.verified) {
@@ -203,7 +206,10 @@ class RobotCheckWidget extends HTMLElement {
       this.state.verificationSessionId = responseData.verificationSessionId;
       this.state.challengePrompt = responseData.challenge.prompt;
       this.state.deadlineAt = responseData.deadlineAt;
-      this.applyVerificationProgress(responseData);
+      if (!this.applyVerificationProgress(responseData)) {
+        this.showErrorMessage("Could not load challenge: missing verification progress.");
+        return;
+      }
       this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.prompt);
       if (responseData.challenge.prompt.kind === "chess_puzzle") {
         await chessBoardComponentReady;
@@ -329,13 +335,14 @@ class RobotCheckWidget extends HTMLElement {
   }
 
   applyVerificationProgress(responseData) {
-    if (!responseData.verification) {
-      return;
+    if (!isValidVerificationProgress(responseData.verification)) {
+      return false;
     }
 
     this.state.verificationSessionId = responseData.verificationSessionId ?? this.state.verificationSessionId;
-    this.state.successfulChallenges = responseData.verification.successfulChallenges ?? 0;
-    this.state.requiredChallengesToPass = responseData.verification.requiredChallengesToPass ?? 1;
+    this.state.successfulChallenges = responseData.verification.successfulChallenges;
+    this.state.requiredChallengesToPass = responseData.verification.requiredChallengesToPass;
+    return true;
   }
 
   dispatchVerificationPassedEvent() {
@@ -388,4 +395,14 @@ function persistVerificationToken(resultToken, expiresAt) {
 
 function clearStoredVerification() {
   window.localStorage.removeItem(VERIFICATION_STORAGE_KEY);
+}
+
+function isValidVerificationProgress(verification) {
+  return (
+    verification &&
+    Number.isSafeInteger(verification.successfulChallenges) &&
+    Number.isSafeInteger(verification.requiredChallengesToPass) &&
+    verification.successfulChallenges >= 0 &&
+    verification.requiredChallengesToPass >= 1
+  );
 }

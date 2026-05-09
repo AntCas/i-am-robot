@@ -35,6 +35,10 @@ import type {
 	VerificationSession,
 } from "./types.ts";
 
+const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
+	requiredChallengesToPass: 1,
+};
+
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const pathname = normalizeRequestPathname(new URL(request.url).pathname);
@@ -422,6 +426,10 @@ export async function loadSiteConfig(env: Env, siteKey: string): Promise<SiteCon
 
 	if (siteFromKv) {
 		const siteConfig = siteFromKv as SiteConfig;
+		if (!isValidSiteConfig(siteConfig)) {
+			return null;
+		}
+
 		return mergeMatchingDefaultSiteConfig(siteConfig, defaultSiteConfig);
 	}
 
@@ -621,7 +629,9 @@ function resolveVerificationPolicy(args: {
 	mode: "prove_robot";
 }): VerificationPolicy {
 	return {
-		requiredChallengesToPass: 3,
+		requiredChallengesToPass:
+			args.siteConfig.verificationPolicy?.requiredChallengesToPass ??
+			DEFAULT_VERIFICATION_POLICY.requiredChallengesToPass,
 	};
 }
 
@@ -633,11 +643,28 @@ function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfi
 	return {
 		...siteConfig,
 		allowedHostnames: Array.from(new Set([...siteConfig.allowedHostnames, ...defaultSiteConfig.allowedHostnames])),
+		verificationPolicy: siteConfig.verificationPolicy ?? defaultSiteConfig.verificationPolicy,
 	};
 }
 
 function isValidSiteConfig(siteConfig: SiteConfig): boolean {
-	return Boolean(siteConfig.siteKey && siteConfig.secret && Array.isArray(siteConfig.allowedHostnames));
+	return Boolean(
+		siteConfig.siteKey &&
+			siteConfig.secret &&
+			Array.isArray(siteConfig.allowedHostnames) &&
+			isValidVerificationPolicy(siteConfig.verificationPolicy),
+	);
+}
+
+function isValidVerificationPolicy(verificationPolicy: VerificationPolicy | undefined): boolean {
+	if (!verificationPolicy) {
+		return true;
+	}
+
+	return (
+		Number.isSafeInteger(verificationPolicy.requiredChallengesToPass) &&
+		verificationPolicy.requiredChallengesToPass >= 1
+	);
 }
 
 async function loadVerifiedPostingTokenPayload(

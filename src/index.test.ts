@@ -40,14 +40,20 @@ class MemoryKVNamespace {
 	}
 }
 
-function createEnv() {
+function createEnv({ requiredChallengesToPass }: { requiredChallengesToPass?: number } = {}) {
+	const siteConfig: Record<string, unknown> = {
+		siteKey: "site_demo_123",
+		secret: "secret_demo_abc",
+		allowedHostnames: ["castrio.me"],
+	};
+
+	if (requiredChallengesToPass !== undefined) {
+		siteConfig.verificationPolicy = { requiredChallengesToPass };
+	}
+
 	return {
 		SITES: new MemoryKVNamespace({
-			"site:site_demo_123": JSON.stringify({
-				siteKey: "site_demo_123",
-				secret: "secret_demo_abc",
-				allowedHostnames: ["castrio.me"],
-			}),
+			"site:site_demo_123": JSON.stringify(siteConfig),
 		}),
 		SESSIONS: new MemoryKVNamespace(),
 		ASSETS: { fetch: async () => new Response("asset") },
@@ -79,12 +85,12 @@ function getCorrectAnswerFromSession(session: { gradingKey: Record<string, any> 
 	return { choiceId: session.gradingKey.expectedChoiceId };
 }
 
-test("verification requires three successful challenge submissions before issuing a token", async () => {
+test("verification uses the server-configured multi-challenge policy before issuing a token", async () => {
 	const originalMathRandom = Math.random;
 	Math.random = () => 0;
 
 	try {
-		const env = createEnv();
+		const env = createEnv({ requiredChallengesToPass: 3 });
 		let verificationSessionId: string | null = null;
 		let finalResultToken: string | null = null;
 
@@ -110,7 +116,9 @@ test("verification requires three successful challenge submissions before issuin
 			assert.ok(typeof startData.challenge.prompt.instruction === "string");
 
 			const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
-			assert.ok(challengeSession);
+			if (!challengeSession) {
+				throw new Error("Expected challenge session to be stored");
+			}
 
 			const submitResponse = await handleChallengeSubmitRequest(
 				createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
@@ -157,17 +165,68 @@ test("verification requires three successful challenge submissions before issuin
 	}
 });
 
+test("verification can complete after one server-configured challenge", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv({ requiredChallengesToPass: 1 });
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+				mode: "prove_robot",
+			}),
+			env as never,
+		);
+
+		assert.equal(startResponse.status, 200);
+		const startData = await readJson(startResponse);
+		assert.equal(startData.verification.requiredChallengesToPass, 1);
+		assert.equal(startData.verification.successfulChallenges, 0);
+		assert.equal(startData.verification.remainingChallenges, 1);
+
+		const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+		if (!challengeSession) {
+			throw new Error("Expected challenge session to be stored");
+		}
+
+		const submitResponse = await handleChallengeSubmitRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+				sessionId: startData.sessionId,
+				answer: getCorrectAnswerFromSession(challengeSession),
+			}),
+			env as never,
+		);
+
+		assert.equal(submitResponse.status, 200);
+		const submitData = await readJson(submitResponse);
+		assert.equal(submitData.success, true);
+		assert.equal(submitData.verified, true);
+		assert.equal(submitData.verification.requiredChallengesToPass, 1);
+		assert.equal(submitData.verification.successfulChallenges, 1);
+		assert.equal(submitData.verification.remainingChallenges, 0);
+		assert.ok(typeof submitData.resultToken === "string");
+	} finally {
+		Math.random = originalMathRandom;
+	}
+});
+
 test("chess puzzle grading accepts SAN without requiring mate punctuation", async () => {
 	const startedChallenge = await chessPuzzleChallenge.start({
 		siteKey: "site_demo_123",
 		hostname: "castrio.me",
 		now: new Date(),
 	});
+	const gradingKey = startedChallenge.gradingKey;
+	if (gradingKey.answerFormat !== "san") {
+		throw new Error("Expected chess puzzle to use SAN grading");
+	}
 
 	const scoreResult = await chessPuzzleChallenge.score({
 		promptPayload: startedChallenge.promptPayload,
-		gradingKey: startedChallenge.gradingKey,
-		answer: { value: startedChallenge.gradingKey.expectedSan.replace("#", "") },
+		gradingKey,
+		answer: { value: gradingKey.expectedSan.replace("#", "") },
 		submittedAt: new Date(),
 		deadlineAt: new Date(Date.now() + 5000),
 	});
@@ -185,32 +244,32 @@ test("message board accepts verified posts and returns them to public readers", 
 		let verificationSessionId: string | null = null;
 		let resultToken: string | null = null;
 
-		for (let round = 1; round <= 3; round += 1) {
-			const startResponse = await handleChallengeStartRequest(
-				createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
-					siteKey: "site_demo_123",
-					hostname: "castrio.me",
-					mode: "prove_robot",
-					verificationSessionId,
-				}),
-				env as never,
-			);
-			const startData = await readJson(startResponse);
-			verificationSessionId = startData.verificationSessionId;
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+				mode: "prove_robot",
+				verificationSessionId,
+			}),
+			env as never,
+		);
+		const startData = await readJson(startResponse);
+		verificationSessionId = startData.verificationSessionId;
 
-			const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
-			assert.ok(challengeSession);
-
-			const submitResponse = await handleChallengeSubmitRequest(
-				createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
-					sessionId: startData.sessionId,
-					answer: getCorrectAnswerFromSession(challengeSession),
-				}),
-				env as never,
-			);
-			const submitData = await readJson(submitResponse);
-			resultToken = submitData.resultToken ?? resultToken;
+		const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+		if (!challengeSession) {
+			throw new Error("Expected challenge session to be stored");
 		}
+
+		const submitResponse = await handleChallengeSubmitRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+				sessionId: startData.sessionId,
+				answer: getCorrectAnswerFromSession(challengeSession),
+			}),
+			env as never,
+		);
+		const submitData = await readJson(submitResponse);
+		resultToken = submitData.resultToken ?? resultToken;
 
 		assert.ok(resultToken);
 
