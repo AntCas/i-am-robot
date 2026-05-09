@@ -9,8 +9,8 @@ export interface Env {
 
 export type Verdict = "robot" | "human" | "failed";
 export type SessionStatus = "issued" | "completed" | "expired";
-export type ChallengeType = "timed_math" | "randomness_audit" | "code_error" | "chess_puzzle";
-export type ChallengeAnswerFormat = "integer" | "choice_id" | "san";
+export type ChallengeType = "timed_math" | "randomness_audit" | "code_error" | "chess_puzzle" | "hash_value";
+export type ChallengeAnswerFormat = "integer" | "choice_id" | "san" | "hex_digest";
 
 export interface SiteConfig {
 	siteKey: string;
@@ -31,12 +31,14 @@ export interface ChallengeChoice {
 
 export interface ShortTextChallengePrompt {
 	kind: "short_text";
-	answerFormat: "integer";
+	answerFormat: "integer" | "hex_digest";
 	instruction: string;
 	body: string;
 	inputLabel: string;
 	placeholder?: string;
 	code?: string;
+	hashFunction?: string;
+	valueToHash?: string;
 }
 
 export interface MultipleChoiceChallengePrompt {
@@ -80,10 +82,24 @@ export interface SanChallengeGradingKey {
 	expectedSan: string;
 }
 
+export interface HexDigestChallengeGradingKey {
+	answerFormat: "hex_digest";
+	expectedHexDigest: string;
+}
+
 export type ChallengeGradingKey =
 	| IntegerChallengeGradingKey
 	| ChoiceChallengeGradingKey
-	| SanChallengeGradingKey;
+	| SanChallengeGradingKey
+	| HexDigestChallengeGradingKey;
+
+export type ChallengeGradingKeyForPrompt<TPrompt extends ChallengePrompt> = TPrompt extends ShortTextChallengePrompt
+	? IntegerChallengeGradingKey | HexDigestChallengeGradingKey
+	: TPrompt extends MultipleChoiceChallengePrompt
+		? ChoiceChallengeGradingKey
+		: TPrompt extends ChessPuzzleChallengePrompt
+			? SanChallengeGradingKey
+			: never;
 
 export interface IntegerChallengeAnswer {
 	value: string;
@@ -93,7 +109,55 @@ export interface ChoiceChallengeAnswer {
 	choiceId: string;
 }
 
-export type ChallengeAnswer = IntegerChallengeAnswer | ChoiceChallengeAnswer;
+export interface SanChallengeAnswer {
+	value: string;
+}
+
+export interface HexDigestChallengeAnswer {
+	value: string;
+}
+
+export type ChallengeAnswer = IntegerChallengeAnswer | ChoiceChallengeAnswer | SanChallengeAnswer | HexDigestChallengeAnswer;
+
+export type ChallengeAnswerForPrompt<TPrompt extends ChallengePrompt> = TPrompt extends ShortTextChallengePrompt
+	? IntegerChallengeAnswer | HexDigestChallengeAnswer
+	: TPrompt extends MultipleChoiceChallengePrompt
+		? ChoiceChallengeAnswer
+		: TPrompt extends ChessPuzzleChallengePrompt
+			? SanChallengeAnswer
+			: never;
+
+export interface ChallengeResponseFormat<TAnswer extends ChallengeAnswer = ChallengeAnswer> {
+	description: string;
+	answer: TAnswer;
+}
+
+export interface ChallengeCatalogExample<
+	TPrompt extends ChallengePrompt = ChallengePrompt,
+	TAnswer extends ChallengeAnswer = ChallengeAnswer,
+> {
+	prompt: TPrompt;
+	answer: TAnswer;
+}
+
+export interface ChallengeCatalogMetadata<
+	TPrompt extends ChallengePrompt = ChallengePrompt,
+	TAnswer extends ChallengeAnswer = ChallengeAnswerForPrompt<TPrompt>,
+> {
+	responseFormat: ChallengeResponseFormat<TAnswer>;
+	example: ChallengeCatalogExample<TPrompt, TAnswer>;
+	timeLimitMs: number;
+}
+
+export interface ChallengeCatalogEntry<
+	TType extends ChallengeType = ChallengeType,
+	TPrompt extends ChallengePrompt = ChallengePrompt,
+	TAnswer extends ChallengeAnswer = ChallengeAnswerForPrompt<TPrompt>,
+> extends ChallengeCatalogMetadata<TPrompt, TAnswer> {
+	type: TType;
+	promptKind: TPrompt["kind"];
+	answerFormat: TPrompt["answerFormat"];
+}
 
 export interface ChallengeSession {
 	id: string;
@@ -134,16 +198,23 @@ export interface ChallengeStartContext {
 	now: Date;
 }
 
-export interface ChallengeStartResult {
-	promptPayload: ChallengePrompt;
-	gradingKey: ChallengeGradingKey;
+export interface ChallengeStartResult<
+	TPrompt extends ChallengePrompt = ChallengePrompt,
+	TGradingKey extends ChallengeGradingKey = ChallengeGradingKeyForPrompt<TPrompt>,
+> {
+	promptPayload: TPrompt;
+	gradingKey: TGradingKey;
 	timeLimitMs: number;
 }
 
-export interface ChallengeScoreContext {
-	promptPayload: ChallengePrompt;
-	gradingKey: ChallengeGradingKey;
-	answer: ChallengeAnswer | undefined;
+export interface ChallengeScoreContext<
+	TPrompt extends ChallengePrompt = ChallengePrompt,
+	TGradingKey extends ChallengeGradingKey = ChallengeGradingKeyForPrompt<TPrompt>,
+	TAnswer extends ChallengeAnswer = ChallengeAnswerForPrompt<TPrompt>,
+> {
+	promptPayload: TPrompt;
+	gradingKey: TGradingKey;
+	answer: TAnswer | undefined;
 	submittedAt: Date;
 	deadlineAt: Date;
 }
@@ -154,10 +225,16 @@ export interface ChallengeScoreResult {
 	reason?: string;
 }
 
-export interface ChallengeDefinition {
-	type: ChallengeType;
-	start(ctx: ChallengeStartContext): Promise<ChallengeStartResult>;
-	score(ctx: ChallengeScoreContext): Promise<ChallengeScoreResult>;
+export interface ChallengeDefinition<
+	TType extends ChallengeType = ChallengeType,
+	TPrompt extends ChallengePrompt = ChallengePrompt,
+	TGradingKey extends ChallengeGradingKey = ChallengeGradingKeyForPrompt<TPrompt>,
+	TAnswer extends ChallengeAnswer = ChallengeAnswerForPrompt<TPrompt>,
+> {
+	type: TType;
+	catalog: ChallengeCatalogMetadata<TPrompt, TAnswer>;
+	start(ctx: ChallengeStartContext): Promise<ChallengeStartResult<TPrompt, TGradingKey>>;
+	score(ctx: ChallengeScoreContext<TPrompt, TGradingKey, TAnswer>): Promise<ChallengeScoreResult>;
 }
 
 export interface StartRequestBody {

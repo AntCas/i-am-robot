@@ -1,7 +1,9 @@
 import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
 import type {
+	ChessPuzzleChallengePrompt,
 	ChallengeDefinition,
-	IntegerChallengeAnswer,
+	ChallengeStartContext,
+	SanChallengeAnswer,
 	SanChallengeGradingKey,
 } from "../types.ts";
 
@@ -39,9 +41,31 @@ const CHESS_PUZZLES: ChessPuzzleRecord[] = [
 	},
 ];
 
-export const chessPuzzleChallenge: ChallengeDefinition = {
+const CHESS_PUZZLE_TIME_LIMIT_MS = 12000;
+
+export const chessPuzzleChallenge = {
 	type: "chess_puzzle",
-	async start() {
+	catalog: {
+		responseFormat: {
+			description: "Submit answer.value with the best move in standard algebraic notation.",
+			answer: { value: "<san-move>" },
+		},
+		example: {
+			prompt: {
+				kind: "chess_puzzle",
+				answerFormat: "san",
+				instruction: "Find the best next move in standard chess notation.",
+				body: "White to move. Enter the strongest move in SAN.",
+				inputLabel: "Best move",
+				fen: "6k1/5ppp/8/8/8/8/8/1R4K1 w - - 0 1",
+				orientation: "white",
+				placeholder: "e.g. Rb8#",
+			},
+			answer: { value: "Rb8#" },
+		},
+		timeLimitMs: CHESS_PUZZLE_TIME_LIMIT_MS,
+	},
+	async start(_context: ChallengeStartContext) {
 		const puzzle = CHESS_PUZZLES[getRandomInteger(0, CHESS_PUZZLES.length - 1)];
 
 		return {
@@ -59,7 +83,7 @@ export const chessPuzzleChallenge: ChallengeDefinition = {
 				answerFormat: "san",
 				expectedSan: puzzle.expectedSan,
 			},
-			timeLimitMs: 12000,
+			timeLimitMs: CHESS_PUZZLE_TIME_LIMIT_MS,
 		};
 	},
 	async score(context) {
@@ -67,7 +91,7 @@ export const chessPuzzleChallenge: ChallengeDefinition = {
 			return createFailedScore("deadline_exceeded");
 		}
 
-		const submittedSan = normalizeSan((context.answer as IntegerChallengeAnswer | undefined)?.value ?? "");
+		const submittedSan = normalizeSan((context.answer as SanChallengeAnswer | undefined)?.value ?? "");
 		const expectedSan = normalizeSan((context.gradingKey as SanChallengeGradingKey).expectedSan);
 
 		if (submittedSan && submittedSan === expectedSan) {
@@ -76,7 +100,7 @@ export const chessPuzzleChallenge: ChallengeDefinition = {
 
 		return createFailedScore("incorrect_answer");
 	},
-};
+} satisfies ChallengeDefinition<"chess_puzzle", ChessPuzzleChallengePrompt, SanChallengeGradingKey, SanChallengeAnswer>;
 
 function normalizeSan(value: string): string {
 	return value

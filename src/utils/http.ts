@@ -4,7 +4,7 @@ import { APP_BASE_PATH, API_PATH_PREFIX } from "../challenges/index.ts";
 
 const responseCorsHeaders = {
 	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "POST, OPTIONS",
+	"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 	"Access-Control-Allow-Headers": "Authorization, Content-Type",
 	"Access-Control-Max-Age": "86400",
 };

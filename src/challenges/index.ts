@@ -1,6 +1,7 @@
 import type { ChallengeDefinition, ChallengeType, ResultTokenPayload } from "../types.ts";
 import { chessPuzzleChallenge } from "./_chess-puzzle.ts";
 import { codeErrorChallenge } from "./_code-error.ts";
+import { hashValueChallenge } from "./_hash-value.ts";
 import { randomnessAuditChallenge } from "./_randomness-audit.ts";
 import { timedMathChallenge } from "./_timed-math.ts";
 
@@ -12,12 +13,13 @@ export const RESULT_TOKEN_TTL_SECONDS = 60 * 5;
 export const APP_BASE_PATH = "/im-a-robot";
 export const API_PATH_PREFIX = `${APP_BASE_PATH}/api`;
 
-export const challengeDefinitions: ChallengeDefinition[] = [
+export const challengeDefinitions = [
 	timedMathChallenge,
 	randomnessAuditChallenge,
 	codeErrorChallenge,
 	chessPuzzleChallenge,
-];
+	hashValueChallenge,
+] as const satisfies readonly ChallengeDefinition[];
 
 export function getChallengeDefinitionByType(type: ChallengeType): ChallengeDefinition {
 	const matchingChallenge = challengeDefinitions.find((challenge) => challenge.type === type);

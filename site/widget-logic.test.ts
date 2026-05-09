@@ -22,6 +22,28 @@ test("getAnswerForPrompt returns a typed integer answer for short_text prompts",
 	assert.deepEqual(getAnswerForPrompt(root, prompt), { value: "42" });
 });
 
+test("getAnswerForPrompt returns a typed hash digest answer for short_text prompts", () => {
+	const prompt = {
+		kind: "short_text",
+		answerFormat: "hex_digest",
+		instruction: "Hash this value with SHA-256.",
+		body: "Return the lowercase hexadecimal digest with no spaces.",
+		inputLabel: "SHA-256 digest",
+		code: "robot-check-42",
+	};
+
+	const root = {
+		querySelector(selector: string) {
+			assert.equal(selector, "#widget-answer-input");
+			return { value: "D40804C883F92404BCB832B8F2A4DDD625F01E24D7649177CD39C5AD8021CB10" };
+		},
+	};
+
+	assert.deepEqual(getAnswerForPrompt(root, prompt), {
+		value: "D40804C883F92404BCB832B8F2A4DDD625F01E24D7649177CD39C5AD8021CB10",
+	});
+});
+
 test("getAnswerForPrompt returns a typed choice answer for multiple_choice prompts", () => {
 	const prompt = {
 		kind: "multiple_choice",
@@ -75,6 +97,22 @@ test("getChallengeMarkup renders choice descriptions for grid multiple choice pr
 	assert.match(markup, /Pick the PRNG string\./);
 	assert.match(markup, /010101/);
 	assert.match(markup, /choice-card/);
+});
+
+test("getChallengeMarkup renders hash short_text prompts with the value to hash", () => {
+	const markup = getChallengeMarkup({
+		kind: "short_text",
+		answerFormat: "hex_digest",
+		instruction: "Hash this value with SHA-256.",
+		body: "Return the lowercase hexadecimal digest with no spaces.",
+		inputLabel: "SHA-256 digest",
+		code: "robot-check-42",
+		placeholder: "lowercase hex digest",
+	});
+
+	assert.match(markup, /Hash this value with SHA-256\./);
+	assert.match(markup, /robot-check-42/);
+	assert.match(markup, /lowercase hex digest/);
 });
 
 test("getChallengeMarkup renders a chess board and FEN for chess prompts", () => {

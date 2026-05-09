@@ -7,6 +7,7 @@ import {
 	getRandomChallengeDefinition,
 	getRandomId,
 } from "./challenges/index.ts";
+import { getChallengeCatalog } from "./challenges/catalog.ts";
 import {
 	createJsonErrorResponse,
 	createJsonResponse,
@@ -52,6 +53,10 @@ export default {
 		try {
 			if (request.method === "POST" && isApiRequestPath(pathname, "/api/challenge/start")) {
 				return await handleChallengeStartRequest(request, env);
+			}
+
+			if (request.method === "GET" && isApiRequestPath(pathname, "/api/challenge/types")) {
+				return handleChallengeTypesRequest(request);
 			}
 
 			if (request.method === "POST" && isApiRequestPath(pathname, "/api/challenge/submit")) {
@@ -184,6 +189,15 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 
 function createApiDocsUrl(requestUrl: URL): string {
 	return new URL(API_DOCS_PATH, requestUrl.origin).toString();
+}
+
+export function handleChallengeTypesRequest(request: Request): Response {
+	const requestUrl = new URL(request.url);
+	return createJsonResponse({
+		success: true,
+		apiDocsUrl: createApiDocsUrl(requestUrl),
+		challenges: getChallengeCatalog(),
+	});
 }
 
 export async function handleChallengeSubmitRequest(request: Request, env: Env): Promise<Response> {

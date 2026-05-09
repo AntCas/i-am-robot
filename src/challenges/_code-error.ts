@@ -5,7 +5,13 @@ import {
 	getRandomInteger,
 	wasSubmittedAfterDeadline,
 } from "./shared.ts";
-import type { ChallengeDefinition, ChoiceChallengeAnswer, ChoiceChallengeGradingKey } from "../types.ts";
+import type {
+	ChallengeDefinition,
+	ChallengeStartContext,
+	ChoiceChallengeAnswer,
+	ChoiceChallengeGradingKey,
+	MultipleChoiceChallengePrompt,
+} from "../types.ts";
 
 const CODE_ERROR_CHOICES = [
 	{ value: "mutates_input", label: "It mutates the input array in place." },
@@ -70,9 +76,36 @@ const CODE_ERROR_PROMPTS: CodeErrorPrompt[] = [
 	},
 ];
 
-export const codeErrorChallenge: ChallengeDefinition = {
+const CODE_ERROR_TIME_LIMIT_MS = 7000;
+
+export const codeErrorChallenge = {
 	type: "code_error",
-	async start() {
+	catalog: {
+		responseFormat: {
+			description: "Submit answer.choiceId with the id of the selected bug explanation.",
+			answer: { choiceId: "<choice-id>" },
+		},
+		example: {
+			prompt: {
+				kind: "multiple_choice",
+				answerFormat: "choice_id",
+				instruction: "Find the bug in the snippet. Pick the best answer.",
+				code: `function first(items) {
+  return items[1];
+}`,
+				layout: "list",
+				choices: [
+					{ id: "wrong_index", label: "It returns the second item instead of the first." },
+					{ id: "mutates_items", label: "It mutates the input array." },
+					{ id: "missing_return", label: "It does not return a value." },
+					{ id: "syntax_error", label: "It has invalid JavaScript syntax." },
+				],
+			},
+			answer: { choiceId: "wrong_index" },
+		},
+		timeLimitMs: CODE_ERROR_TIME_LIMIT_MS,
+	},
+	async start(_context: ChallengeStartContext) {
 		const prompt = CODE_ERROR_PROMPTS[getRandomInteger(0, CODE_ERROR_PROMPTS.length - 1)];
 
 		return {
@@ -91,7 +124,7 @@ export const codeErrorChallenge: ChallengeDefinition = {
 				answerFormat: "choice_id",
 				expectedChoiceId: prompt.expectedChoice,
 			},
-			timeLimitMs: 7000,
+			timeLimitMs: CODE_ERROR_TIME_LIMIT_MS,
 		};
 	},
 	async score(context) {
@@ -108,4 +141,4 @@ export const codeErrorChallenge: ChallengeDefinition = {
 
 		return createFailedScore("incorrect_answer");
 	},
-};
+} satisfies ChallengeDefinition<"code_error", MultipleChoiceChallengePrompt, ChoiceChallengeGradingKey, ChoiceChallengeAnswer>;

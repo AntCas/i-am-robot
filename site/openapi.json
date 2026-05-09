@@ -31,6 +31,26 @@
     }
   ],
   "paths": {
+    "/api/challenge/types": {
+      "get": {
+        "tags": ["Challenges"],
+        "summary": "List supported challenge types",
+        "description": "Returns the currently supported challenge types, answer submission shapes, time limits, and illustrative example prompts without creating a challenge session.",
+        "operationId": "listChallengeTypes",
+        "responses": {
+          "200": {
+            "description": "Challenge type catalog.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChallengeTypesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/challenge/start": {
       "post": {
         "tags": ["Challenges"],
@@ -304,7 +324,15 @@
       },
       "ChallengeType": {
         "type": "string",
-        "enum": ["timed_math", "randomness_audit", "code_error", "chess_puzzle"]
+        "enum": ["timed_math", "randomness_audit", "code_error", "chess_puzzle", "hash_value"]
+      },
+      "PromptKind": {
+        "type": "string",
+        "enum": ["short_text", "multiple_choice", "chess_puzzle"]
+      },
+      "ChallengeAnswerFormat": {
+        "type": "string",
+        "enum": ["integer", "choice_id", "san", "hex_digest"]
       },
       "Verdict": {
         "type": "string",
@@ -380,6 +408,94 @@
           }
         }
       },
+      "ChallengeTypesResponse": {
+        "type": "object",
+        "required": ["success", "apiDocsUrl", "challenges"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "apiDocsUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Absolute URL for the hosted API documentation."
+          },
+          "challenges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChallengeCatalogEntry"
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "ChallengeCatalogEntry": {
+        "type": "object",
+        "required": [
+          "type",
+          "promptKind",
+          "answerFormat",
+          "responseFormat",
+          "example",
+          "timeLimitMs"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ChallengeType"
+          },
+          "promptKind": {
+            "$ref": "#/components/schemas/PromptKind"
+          },
+          "answerFormat": {
+            "$ref": "#/components/schemas/ChallengeAnswerFormat"
+          },
+          "responseFormat": {
+            "$ref": "#/components/schemas/ChallengeResponseFormat"
+          },
+          "example": {
+            "$ref": "#/components/schemas/ChallengeCatalogExample"
+          },
+          "timeLimitMs": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "ChallengeResponseFormat": {
+        "type": "object",
+        "required": ["description", "answer"],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "answer": {
+            "$ref": "#/components/schemas/ChallengeAnswer"
+          }
+        }
+      },
+      "ChallengeCatalogExample": {
+        "type": "object",
+        "required": ["prompt", "answer"],
+        "properties": {
+          "prompt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShortTextChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/MultipleChoiceChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/ChessPuzzleChallengePrompt"
+              }
+            ]
+          },
+          "answer": {
+            "$ref": "#/components/schemas/ChallengeAnswer"
+          }
+        }
+      },
       "ChallengeChoice": {
         "type": "object",
         "required": ["id", "label"],
@@ -405,7 +521,7 @@
           },
           "answerFormat": {
             "type": "string",
-            "const": "integer"
+            "enum": ["integer", "hex_digest"]
           },
           "instruction": {
             "type": "string"
@@ -421,6 +537,14 @@
           },
           "code": {
             "type": "string"
+          },
+          "hashFunction": {
+            "type": "string",
+            "description": "Hash function to apply when answerFormat is hex_digest."
+          },
+          "valueToHash": {
+            "type": "string",
+            "description": "Exact input value to hash when answerFormat is hex_digest."
           }
         }
       },
@@ -567,6 +691,9 @@
             "$ref": "#/components/schemas/IntegerChallengeAnswer"
           },
           {
+            "$ref": "#/components/schemas/HexDigestChallengeAnswer"
+          },
+          {
             "$ref": "#/components/schemas/ChoiceChallengeAnswer"
           },
           {
@@ -580,6 +707,16 @@
         "properties": {
           "value": {
             "type": "string"
+          }
+        }
+      },
+      "HexDigestChallengeAnswer": {
+        "type": "object",
+        "required": ["value"],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "Lowercase hexadecimal digest with no spaces."
           }
         }
       },

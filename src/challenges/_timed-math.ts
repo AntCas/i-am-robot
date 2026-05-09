@@ -1,9 +1,34 @@
 import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
-import type { ChallengeDefinition, IntegerChallengeAnswer, IntegerChallengeGradingKey } from "../types.ts";
+import type {
+	ChallengeDefinition,
+	ChallengeStartContext,
+	IntegerChallengeAnswer,
+	IntegerChallengeGradingKey,
+	ShortTextChallengePrompt,
+} from "../types.ts";
 
-export const timedMathChallenge: ChallengeDefinition = {
+const TIMED_MATH_TIME_LIMIT_MS = 5000;
+
+export const timedMathChallenge = {
 	type: "timed_math",
-	async start() {
+	catalog: {
+		responseFormat: {
+			description: "Submit answer.value as the integer result encoded as a string.",
+			answer: { value: "<integer-as-string>" },
+		},
+		example: {
+			prompt: {
+				kind: "short_text",
+				answerFormat: "integer",
+				instruction: "Solve the expression.",
+				body: "What is 17 * 23 + 9?",
+				inputLabel: "Answer",
+			},
+			answer: { value: "400" },
+		},
+		timeLimitMs: TIMED_MATH_TIME_LIMIT_MS,
+	},
+	async start(_context: ChallengeStartContext) {
 		const firstFactor = getRandomInteger(120, 999);
 		const secondFactor = getRandomInteger(20, 99);
 		const addend = getRandomInteger(11, 89);
@@ -20,7 +45,7 @@ export const timedMathChallenge: ChallengeDefinition = {
 				answerFormat: "integer",
 				expectedInteger: firstFactor * secondFactor + addend,
 			},
-			timeLimitMs: 5000,
+			timeLimitMs: TIMED_MATH_TIME_LIMIT_MS,
 		};
 	},
 	async score(context) {
@@ -37,4 +62,4 @@ export const timedMathChallenge: ChallengeDefinition = {
 
 		return createFailedScore("incorrect_answer");
 	},
-};
+} satisfies ChallengeDefinition<"timed_math", ShortTextChallengePrompt, IntegerChallengeGradingKey, IntegerChallengeAnswer>;

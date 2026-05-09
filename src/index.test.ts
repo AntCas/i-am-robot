@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import worker from "./index.ts";
 import {
 	handleChallengeStartRequest,
 	handleChallengeSubmitRequest,
@@ -10,6 +11,7 @@ import {
 	loadChallengeSession,
 } from "./index.ts";
 import { chessPuzzleChallenge } from "./challenges/_chess-puzzle.ts";
+import { hashValueChallenge } from "./challenges/_hash-value.ts";
 
 class MemoryKVNamespace {
 	store: Map<string, string>;
@@ -82,8 +84,52 @@ function getCorrectAnswerFromSession(session: { gradingKey: Record<string, any> 
 		return { value: session.gradingKey.expectedSan };
 	}
 
+	if (session.gradingKey.answerFormat === "hex_digest") {
+		return { value: session.gradingKey.expectedHexDigest };
+	}
+
 	return { choiceId: session.gradingKey.expectedChoiceId };
 }
+
+test("challenge type catalog lists formats and non-live examples without creating sessions", async () => {
+	const env = createEnv();
+	const response = await worker.fetch(
+		new Request("https://robot.example/im-a-robot/api/challenge/types"),
+		env as never,
+	);
+
+	assert.equal(response.status, 200);
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, true);
+	assert.equal(responseData.apiDocsUrl, "https://robot.example/im-a-robot/docs");
+	assert.deepEqual(
+		responseData.challenges.map((challenge: Record<string, any>) => challenge.type),
+		["timed_math", "randomness_audit", "code_error", "chess_puzzle", "hash_value"],
+	);
+
+	const timedMath = responseData.challenges[0];
+	assert.equal(timedMath.answerFormat, "integer");
+	assert.deepEqual(timedMath.responseFormat.answer, { value: "<integer-as-string>" });
+	assert.equal(timedMath.example.prompt.body, "What is 17 * 23 + 9?");
+	assert.deepEqual(timedMath.example.answer, { value: "400" });
+
+	const randomnessAudit = responseData.challenges[1];
+	assert.equal(randomnessAudit.answerFormat, "choice_id");
+	assert.deepEqual(randomnessAudit.responseFormat.answer, { choiceId: "<choice-id>" });
+	assert.equal(randomnessAudit.example.prompt.choices.length, 4);
+
+	const chessPuzzle = responseData.challenges[3];
+	assert.equal(chessPuzzle.answerFormat, "san");
+	assert.equal(chessPuzzle.example.prompt.fen, "6k1/5ppp/8/8/8/8/8/1R4K1 w - - 0 1");
+	assert.deepEqual(chessPuzzle.example.answer, { value: "Rb8#" });
+
+	const hashValue = responseData.challenges[4];
+	assert.equal(hashValue.answerFormat, "hex_digest");
+	assert.deepEqual(hashValue.responseFormat.answer, { value: "<hex-digest>" });
+	assert.equal(hashValue.example.prompt.hashFunction, "SHA-256");
+	assert.equal(hashValue.example.prompt.valueToHash, "robot-check-42");
+	assert.equal(env.SESSIONS.store.size, 0);
+});
 
 test("verification uses the server-configured multi-challenge policy before issuing a token", async () => {
 	const originalMathRandom = Math.random;
@@ -228,6 +274,30 @@ test("chess puzzle grading accepts SAN without requiring mate punctuation", asyn
 		promptPayload: startedChallenge.promptPayload,
 		gradingKey,
 		answer: { value: gradingKey.expectedSan.replace("#", "") },
+		submittedAt: new Date(),
+		deadlineAt: new Date(Date.now() + 5000),
+	});
+
+	assert.equal(scoreResult.score, 1);
+	assert.equal(scoreResult.verdict, "robot");
+});
+
+test("hash value grading accepts hexadecimal digests case-insensitively", async () => {
+	const startedChallenge = await hashValueChallenge.start({
+		siteKey: "site_demo_123",
+		hostname: "castrio.me",
+		now: new Date(),
+	});
+	const gradingKey = startedChallenge.gradingKey;
+	if (gradingKey.answerFormat !== "hex_digest") {
+		throw new Error("Expected hash value to use hex digest grading");
+	}
+
+	const formattedDigest = `${gradingKey.expectedHexDigest.slice(0, 8)} ${gradingKey.expectedHexDigest.slice(8)}`.toUpperCase();
+	const scoreResult = await hashValueChallenge.score({
+		promptPayload: startedChallenge.promptPayload,
+		gradingKey,
+		answer: { value: formattedDigest },
 		submittedAt: new Date(),
 		deadlineAt: new Date(Date.now() + 5000),
 	});
