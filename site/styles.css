@@ -4,6 +4,9 @@
   --muted: #5f6368;
   --accent: #1a73e8;
   --accent-2: #174ea6;
+  --widget-card-radius: 6px;
+  --widget-challenge-radius: 8px;
+  --widget-control-radius: 10px;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -92,7 +95,7 @@ body {
   gap: 1rem;
   padding: 1.25rem;
   border: 1px solid #d7dee8;
-  border-radius: 20px;
+  border-radius: var(--widget-card-radius);
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 18px 40px rgba(23, 50, 77, 0.08);
   backdrop-filter: blur(14px);
@@ -122,7 +125,7 @@ body {
   width: 100%;
   padding: 0.85rem 1rem;
   border: 1px solid #c9ced6;
-  border-radius: 14px;
+  border-radius: var(--widget-control-radius);
   background: rgba(255, 255, 255, 0.96);
   font: inherit;
   font-weight: 400;
@@ -165,14 +168,20 @@ body {
   gap: 0.7rem;
   padding: 1rem 1.1rem;
   border: 1px solid #dce3ec;
-  border-radius: 16px;
+  border-radius: var(--widget-challenge-radius);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 255, 0.95) 100%);
 }
 
 .message-board-item-meta {
   flex-wrap: wrap;
   color: #3d556d;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 0.92rem;
+}
+
+.message-board-item-meta strong,
+.message-board-item-meta time {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
 .widget-card {
@@ -184,7 +193,7 @@ body {
   gap: 1.5rem;
   padding: 1.2rem 1.4rem;
   border: 1px solid #c9ced6;
-  border-radius: 6px;
+  border-radius: var(--widget-card-radius);
   background: #f9f9f9;
   box-shadow: 0 1px 2px rgba(60, 64, 67, 0.2);
 }
@@ -340,7 +349,7 @@ body {
 
 .widget-challenge {
   border: 1px solid #d9dee7;
-  border-radius: 8px;
+  border-radius: var(--widget-challenge-radius);
   padding: 1rem;
   background: #fbfdff;
 }
@@ -363,7 +372,7 @@ body {
   width: 100%;
   padding: 0.75rem 0.9rem;
   border: 1px solid #c9ced6;
-  border-radius: 10px;
+  border-radius: var(--widget-control-radius);
   font: inherit;
 }
 
@@ -451,10 +460,11 @@ body {
   display: flex;
 }
 
+.message-board-form-row button,
 .widget-actions button {
   padding: 0.75rem 1rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--widget-control-radius);
   background: var(--accent);
   color: #fff;
   font: inherit;
@@ -462,6 +472,7 @@ body {
   cursor: pointer;
 }
 
+.message-board-form-row button:disabled,
 .widget-actions button:disabled {
   cursor: default;
   opacity: 0.6;
