@@ -12,69 +12,27 @@ import type {
 	ChoiceChallengeGradingKey,
 	MultipleChoiceChallengePrompt,
 } from "../types.ts";
+import codeErrorAnswerBank from "./_code-error.ts.answerbank.json" with { type: "json" };
 
-const CODE_ERROR_CHOICES = [
-	{ value: "mutates_input", label: "It mutates the input array in place." },
-	{ value: "off_by_one", label: "The loop runs one element too far and reads past the end." },
-	{ value: "wrong_divisor", label: "It divides by the sum instead of the length." },
-	{ value: "const_sum", label: "The sum variable is declared as const but then reassigned." },
-] as const;
+interface CodeErrorAnswerBank {
+	choices: CodeErrorChoice[];
+	prompts: CodeErrorPrompt[];
+}
 
-type CodeErrorChoiceValue = (typeof CODE_ERROR_CHOICES)[number]["value"];
+interface CodeErrorChoice {
+	value: string;
+	label: string;
+}
+
+const CODE_ERROR_ANSWER_BANK = codeErrorAnswerBank as CodeErrorAnswerBank;
+const CODE_ERROR_CHOICES = CODE_ERROR_ANSWER_BANK.choices;
 
 interface CodeErrorPrompt {
 	code: string;
-	expectedChoice: CodeErrorChoiceValue;
+	expectedChoice: string;
 }
 
-const CODE_ERROR_PROMPTS: CodeErrorPrompt[] = [
-	{
-		code: `function median(values) {
-  values.sort((left, right) => left - right);
-
-  const middle = Math.floor(values.length / 2);
-
-  return values[middle];
-}`,
-		expectedChoice: "mutates_input",
-	},
-	{
-		code: `function average(values) {
-  let sum = 0;
-
-  for (let i = 0; i <= values.length; i++) {
-    sum += values[i];
-  }
-
-  return sum / values.length;
-}`,
-		expectedChoice: "off_by_one",
-	},
-	{
-		code: `function average(values) {
-  let sum = 0;
-
-  for (const value of values) {
-    sum += value;
-  }
-
-  return sum / sum;
-}`,
-		expectedChoice: "wrong_divisor",
-	},
-	{
-		code: `function average(values) {
-  const sum = 0;
-
-  for (const value of values) {
-    sum += value;
-  }
-
-  return sum / values.length;
-}`,
-		expectedChoice: "const_sum",
-	},
-];
+const CODE_ERROR_PROMPTS = CODE_ERROR_ANSWER_BANK.prompts;
 
 const CODE_ERROR_TIME_LIMIT_MS = 7000;
 

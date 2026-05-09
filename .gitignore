@@ -23,5 +23,8 @@ Session.vim
 .env
 .env.*
 
+# Private challenge answer banks
+*.answerbank.json
+
 # Logs
 *.log
