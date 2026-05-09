@@ -26,6 +26,7 @@ import type {
 	StartRequestBody,
 	SubmitRequestBody,
 	VerifyRequestBody,
+	VerificationSession,
 } from "./types";
 
 export default {
@@ -69,6 +70,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	const requestBody = (await request.json()) as StartRequestBody;
 	const siteKey = requestBody.siteKey?.trim();
 	const verificationMode = requestBody.mode?.trim() ?? "prove_robot";
+	const verificationSessionId = requestBody.verificationSessionId?.trim();
 	const requestUrl = new URL(request.url);
 	const hostname = normalizeHostnameInput(requestBody.hostname, request.headers.get("Origin"), requestUrl.host);
 
@@ -93,6 +95,32 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		return createJsonErrorResponse("hostname_not_allowed", 403);
 	}
 
+	const verificationSession = verificationSessionId
+		? await loadVerificationSession(env, verificationSessionId)
+		: createActiveVerificationSession({
+				verificationSessionId: getRandomId("vfy"),
+				siteKey,
+				hostname,
+				issuedAt: new Date().toISOString(),
+				requiredChallengesToPass: getRequiredChallengesToPass(siteConfig),
+			});
+
+	if (!verificationSession) {
+		return createJsonErrorResponse("verification_session_not_found", 404);
+	}
+
+	if (
+		verificationSession.siteKey !== siteKey ||
+		verificationSession.hostname !== hostname ||
+		verificationSession.mode !== verificationMode
+	) {
+		return createJsonErrorResponse("invalid_verification_session", 409);
+	}
+
+	if (verificationSession.status !== "active") {
+		return createJsonErrorResponse("verification_session_closed", 409);
+	}
+
 	const challengeDefinition = getRandomChallengeDefinition();
 	const now = new Date();
 	const startedChallenge = await challengeDefinition.start({ siteKey, hostname, now });
@@ -101,6 +129,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	const sessionId = getRandomId("sess");
 	const session = createPendingChallengeSession({
 		sessionId,
+		verificationSessionId: verificationSession.id,
 		siteKey,
 		hostname,
 		challengeType: challengeDefinition.type,
@@ -110,9 +139,12 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		gradingKey: startedChallenge.gradingKey,
 	});
 
+	await saveVerificationSession(env, verificationSession);
 	await saveChallengeSession(env, session);
 
 	return createJsonResponse({
+		verificationSessionId: verificationSession.id,
+		verification: createVerificationProgressPayload(verificationSession),
 		sessionId,
 		challenge: {
 			type: challengeDefinition.type,
@@ -141,8 +173,17 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 		return createJsonErrorResponse("session_not_found", 404);
 	}
 
-	if (session.status === "completed") {
+	if (session.status !== "issued") {
 		return createJsonErrorResponse("session_already_completed", 409);
+	}
+
+	const verificationSession = await loadVerificationSession(env, session.verificationSessionId);
+	if (!verificationSession) {
+		return createJsonErrorResponse("verification_session_not_found", 404);
+	}
+
+	if (verificationSession.status !== "active") {
+		return createJsonErrorResponse("verification_session_closed", 409);
 	}
 
 	const submittedAt = new Date();
@@ -156,31 +197,69 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 		deadlineAt,
 	});
 	const completedAt = submittedAt.toISOString();
-	const tokenIssuedAtSeconds = Math.floor(submittedAt.getTime() / 1000);
-	const tokenExpiresAtSeconds = tokenIssuedAtSeconds + RESULT_TOKEN_TTL_SECONDS;
-	const tokenId = getRandomId("rtok");
 	const completedSession = createCompletedChallengeSession({
 		session,
 		submittedAt,
 		score: scoreResult.score,
 		verdict: scoreResult.verdict,
-		tokenId,
 	});
 
 	await saveChallengeSession(env, completedSession);
 
 	if (scoreResult.verdict === "failed") {
+		const failedVerificationSession = createFailedVerificationSession(verificationSession, completedAt);
+		await saveVerificationSession(env, failedVerificationSession);
+
 		return createJsonResponse({
 			success: false,
 			verdict: "failed",
 			reason: scoreResult.reason ?? "incorrect_answer",
 			completedAt,
+			verificationSessionId: verificationSession.id,
+			verification: createVerificationProgressPayload(failedVerificationSession),
 		});
 	}
+
+	const successfulChallenges = verificationSession.successfulChallenges + 1;
+	if (successfulChallenges < verificationSession.requiredChallengesToPass) {
+		const advancedVerificationSession = {
+			...verificationSession,
+			successfulChallenges,
+		};
+		await saveVerificationSession(env, advancedVerificationSession);
+
+		return createJsonResponse({
+			success: true,
+			verified: false,
+			verdict: scoreResult.verdict,
+			score: scoreResult.score,
+			completedAt,
+			verificationSessionId: verificationSession.id,
+			verification: createVerificationProgressPayload(advancedVerificationSession),
+		});
+	}
+
+	const tokenIssuedAtSeconds = Math.floor(submittedAt.getTime() / 1000);
+	const tokenExpiresAtSeconds = tokenIssuedAtSeconds + RESULT_TOKEN_TTL_SECONDS;
+	const tokenId = getRandomId("rtok");
+	const finalizedSession = {
+		...completedSession,
+		resultTokenId: tokenId,
+	};
+	const completedVerificationSession = createCompletedVerificationSession({
+		session: verificationSession,
+		completedAt,
+		successfulChallenges,
+		tokenId,
+	});
+
+	await saveChallengeSession(env, finalizedSession);
+	await saveVerificationSession(env, completedVerificationSession);
 
 	const resultToken = await signResultToken(
 		createResultTokenPayload({
 			tokenId,
+			verificationSessionId: verificationSession.id,
 			sessionId: session.id,
 			siteKey: session.siteKey,
 			hostname: session.hostname,
@@ -195,8 +274,11 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 
 	return createJsonResponse({
 		success: true,
+		verified: true,
 		verdict: scoreResult.verdict,
 		score: scoreResult.score,
+		verificationSessionId: verificationSession.id,
+		verification: createVerificationProgressPayload(completedVerificationSession),
 		resultToken,
 		completedAt,
 		expiresAt: new Date(tokenExpiresAtSeconds * 1000).toISOString(),
@@ -231,12 +313,25 @@ export async function handleVerifyRequest(request: Request, env: Env): Promise<R
 		return createJsonErrorResponse("invalid_secret", 401);
 	}
 
+	const verificationSession = await loadVerificationSession(env, verifiedTokenPayload.vid);
+	if (!verificationSession) {
+		return createJsonErrorResponse("verification_session_not_found", 404);
+	}
+
+	if (verificationSession.status !== "completed" || verificationSession.resultTokenId !== verifiedTokenPayload.tid) {
+		return createJsonErrorResponse("invalid_result_token", 401);
+	}
+
 	const session = await loadChallengeSession(env, verifiedTokenPayload.sid);
 	if (!session) {
 		return createJsonErrorResponse("session_not_found", 404);
 	}
 
-	if (session.resultTokenId !== verifiedTokenPayload.tid) {
+	if (
+		session.resultTokenId !== verifiedTokenPayload.tid ||
+		session.verificationSessionId !== verificationSession.id ||
+		verificationSession.successfulChallenges < verificationSession.requiredChallengesToPass
+	) {
 		return createJsonErrorResponse("invalid_result_token", 401);
 	}
 
@@ -246,8 +341,8 @@ export async function handleVerifyRequest(request: Request, env: Env): Promise<R
 		challengeType: verifiedTokenPayload.ctype,
 		score: verifiedTokenPayload.score,
 		hostname: verifiedTokenPayload.host,
-		issuedAt: session.issuedAt,
-		completedAt: session.completedAt,
+		issuedAt: verificationSession.issuedAt,
+		completedAt: verificationSession.completedAt,
 	});
 }
 
@@ -300,8 +395,19 @@ export async function loadChallengeSession(env: Env, sessionId: string): Promise
 	return (session as ChallengeSession | null) ?? null;
 }
 
+export async function loadVerificationSession(env: Env, verificationSessionId: string): Promise<VerificationSession | null> {
+	const session = await env.SESSIONS.get(`verification:${verificationSessionId}`, "json");
+	return (session as VerificationSession | null) ?? null;
+}
+
 export async function saveChallengeSession(env: Env, session: ChallengeSession): Promise<void> {
 	await env.SESSIONS.put(`session:${session.id}`, JSON.stringify(session), {
+		expirationTtl: SESSION_TTL_SECONDS,
+	});
+}
+
+export async function saveVerificationSession(env: Env, session: VerificationSession): Promise<void> {
+	await env.SESSIONS.put(`verification:${session.id}`, JSON.stringify(session), {
 		expirationTtl: SESSION_TTL_SECONDS,
 	});
 }
@@ -313,6 +419,7 @@ export function getSigningSecret(env: Env): string | null {
 
 function createPendingChallengeSession(args: {
 	sessionId: string;
+	verificationSessionId: string;
 	siteKey: string;
 	hostname: string;
 	challengeType: ChallengeSession["challengeType"];
@@ -323,6 +430,7 @@ function createPendingChallengeSession(args: {
 }): ChallengeSession {
 	return {
 		id: args.sessionId,
+		verificationSessionId: args.verificationSessionId,
 		siteKey: args.siteKey,
 		hostname: args.hostname,
 		mode: "prove_robot",
@@ -344,7 +452,6 @@ function createCompletedChallengeSession(args: {
 	submittedAt: Date;
 	score: number;
 	verdict: ChallengeSession["verdict"];
-	tokenId: string;
 }): ChallengeSession {
 	return {
 		...args.session,
@@ -352,8 +459,77 @@ function createCompletedChallengeSession(args: {
 		completedAt: args.submittedAt.toISOString(),
 		score: args.score,
 		verdict: args.verdict,
+		resultTokenId: null,
+	};
+}
+
+function createActiveVerificationSession(args: {
+	verificationSessionId: string;
+	siteKey: string;
+	hostname: string;
+	issuedAt: string;
+	requiredChallengesToPass: number;
+}): VerificationSession {
+	return {
+		id: args.verificationSessionId,
+		siteKey: args.siteKey,
+		hostname: args.hostname,
+		mode: "prove_robot",
+		issuedAt: args.issuedAt,
+		completedAt: null,
+		status: "active",
+		requiredChallengesToPass: args.requiredChallengesToPass,
+		successfulChallenges: 0,
+		resultTokenId: null,
+	};
+}
+
+function createCompletedVerificationSession(args: {
+	session: VerificationSession;
+	completedAt: string;
+	successfulChallenges: number;
+	tokenId: string;
+}): VerificationSession {
+	return {
+		...args.session,
+		completedAt: args.completedAt,
+		status: "completed",
+		successfulChallenges: args.successfulChallenges,
 		resultTokenId: args.tokenId,
 	};
+}
+
+function createFailedVerificationSession(session: VerificationSession, completedAt: string): VerificationSession {
+	return {
+		...session,
+		completedAt,
+		status: "failed",
+		resultTokenId: null,
+	};
+}
+
+function createVerificationProgressPayload(session: VerificationSession): {
+	successfulChallenges: number;
+	requiredChallengesToPass: number;
+	remainingChallenges: number;
+	status: VerificationSession["status"];
+} {
+	return {
+		successfulChallenges: session.successfulChallenges,
+		requiredChallengesToPass: session.requiredChallengesToPass,
+		remainingChallenges: Math.max(0, session.requiredChallengesToPass - session.successfulChallenges),
+		status: session.status,
+	};
+}
+
+function getRequiredChallengesToPass(siteConfig: SiteConfig): number {
+	const configuredValue = siteConfig.requiredChallengesToPass;
+
+	if (!Number.isInteger(configuredValue) || !configuredValue) {
+		return 3;
+	}
+
+	return Math.max(1, configuredValue);
 }
 
 function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfig: SiteConfig | null): SiteConfig {
@@ -364,9 +540,16 @@ function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfi
 	return {
 		...siteConfig,
 		allowedHostnames: Array.from(new Set([...siteConfig.allowedHostnames, ...defaultSiteConfig.allowedHostnames])),
+		requiredChallengesToPass: siteConfig.requiredChallengesToPass ?? defaultSiteConfig.requiredChallengesToPass,
 	};
 }
 
 function isValidSiteConfig(siteConfig: SiteConfig): boolean {
-	return Boolean(siteConfig.siteKey && siteConfig.secret && Array.isArray(siteConfig.allowedHostnames));
+	return Boolean(
+		siteConfig.siteKey &&
+			siteConfig.secret &&
+			Array.isArray(siteConfig.allowedHostnames) &&
+			(siteConfig.requiredChallengesToPass === undefined ||
+				(Number.isInteger(siteConfig.requiredChallengesToPass) && siteConfig.requiredChallengesToPass >= 1)),
+	);
 }

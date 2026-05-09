@@ -23,6 +23,10 @@ Current challenge types:
 - `randomness_audit`
 - `code_error`
 
+Each site config can also set:
+
+- `requiredChallengesToPass`: how many consecutive successful challenges are required before the Worker issues a valid `resultToken`
+
 ## Local Development
 
 ### 1. Install dependencies
@@ -62,7 +66,8 @@ Local fallback:
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"]
+  "allowedHostnames": ["castrio.me", "localhost:8787", "127.0.0.1:8787"],
+  "requiredChallengesToPass": 3
 }'
 ```
 
@@ -137,7 +142,8 @@ Use a real random secret here.
 npx wrangler kv key put --binding SITES "site:site_demo_123" '{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me"]
+  "allowedHostnames": ["castrio.me"],
+  "requiredChallengesToPass": 3
 }'
 ```
 
@@ -171,7 +177,20 @@ Then verify:
 - the page loads
 - CSS and JS load correctly
 - the widget loads a challenge
-- successful answers return a signed `resultToken`
+- the widget only returns a signed `resultToken` after the configured number of successful challenges
+
+## Embed Example
+
+The demo page uses:
+
+```html
+<robot-check-widget
+  site-key="site_demo_123"
+  app-base-path="/im-a-robot"
+></robot-check-widget>
+```
+
+For the hosted service shape, `site-key` should be the public identifier you issue to customers. The Worker now treats challenge progress as server-owned state, so clients cannot mint a valid `resultToken` early by skipping the widget's UI flow.
 
 ## API Examples
 
@@ -181,7 +200,8 @@ Then verify:
 {
   "siteKey": "site_demo_123",
   "hostname": "castrio.me",
-  "mode": "prove_robot"
+  "mode": "prove_robot",
+  "verificationSessionId": "vfy_..."
 }
 ```
 

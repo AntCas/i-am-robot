@@ -15,10 +15,12 @@ export interface SiteConfig {
 	siteKey: string;
 	secret: string;
 	allowedHostnames: string[];
+	requiredChallengesToPass?: number;
 }
 
 export interface ChallengeSession {
 	id: string;
+	verificationSessionId: string;
 	siteKey: string;
 	hostname: string;
 	mode: "prove_robot";
@@ -31,6 +33,21 @@ export interface ChallengeSession {
 	gradingKey: unknown;
 	score: number | null;
 	verdict: Verdict | null;
+	resultTokenId: string | null;
+}
+
+export type VerificationSessionStatus = "active" | "completed" | "failed";
+
+export interface VerificationSession {
+	id: string;
+	siteKey: string;
+	hostname: string;
+	mode: "prove_robot";
+	issuedAt: string;
+	completedAt: string | null;
+	status: VerificationSessionStatus;
+	requiredChallengesToPass: number;
+	successfulChallenges: number;
 	resultTokenId: string | null;
 }
 
@@ -70,6 +87,7 @@ export interface StartRequestBody {
 	siteKey?: string;
 	hostname?: string;
 	mode?: string;
+	verificationSessionId?: string;
 }
 
 export interface SubmitRequestBody {
@@ -84,6 +102,7 @@ export interface VerifyRequestBody {
 
 export interface ResultTokenPayload {
 	tid: string;
+	vid: string;
 	sid: string;
 	sk: string;
 	host: string;

@@ -1,17 +1,19 @@
-export const MAX_VERIFICATION_STREAK = 3;
+export const MAX_FAILURES = 3;
 export const DEFAULT_SITE_KEY = "site_demo_123";
 
 // This module is intentionally pure so widget behavior can be unit tested
 // without a DOM or network.
 
-export function createInitialWidgetState(appBasePath) {
+export function createInitialWidgetState(config) {
   return {
-    appBasePath,
+    config,
     sessionId: null,
+    verificationSessionId: null,
     challengeType: null,
     deadlineAt: null,
     timerId: null,
-    streakCount: 0,
+    successfulChallenges: 0,
+    requiredChallengesToPass: 1,
     attemptFailures: 0,
     verified: false,
     resultToken: null,
@@ -19,7 +21,7 @@ export function createInitialWidgetState(appBasePath) {
   };
 }
 
-export function getWidgetMarkup() {
+export function getWidgetMarkup(config) {
   return `
     <div class="widget-card widget-card-interactive widget-state-normal">
       <div class="widget-main">
@@ -62,9 +64,9 @@ export function getWidgetMarkup() {
         </div>
         <p class="brand-title">Robot Check</p>
         <p class="brand-links">
-          <a href="/im-a-robot/privacy">Privacy</a>
+          <a href="${escapeHtml(config.privacyPath)}">Privacy</a>
           <span>-</span>
-          <a href="/im-a-robot/terms">Terms</a>
+          <a href="${escapeHtml(config.termsPath)}">Terms</a>
         </p>
       </div>
 
@@ -92,11 +94,22 @@ export function getWidgetMarkup() {
   `;
 }
 
-export function createStartChallengeRequestBody(hostname) {
+export function resolveWidgetConfig(element, pathname) {
+  const appBasePath = normalizeAppBasePath(element.getAttribute("app-base-path")) ?? getWidgetAppBasePath(pathname);
   return {
-    siteKey: DEFAULT_SITE_KEY,
+    appBasePath,
+    siteKey: element.getAttribute("site-key")?.trim() || DEFAULT_SITE_KEY,
+    privacyPath: normalizeRelativePath(element.getAttribute("privacy-path")) ?? `${appBasePath}/privacy`,
+    termsPath: normalizeRelativePath(element.getAttribute("terms-path")) ?? `${appBasePath}/terms`,
+  };
+}
+
+export function createStartChallengeRequestBody(siteKey, hostname, verificationSessionId) {
+  return {
+    siteKey,
     hostname,
     mode: "prove_robot",
+    verificationSessionId,
   };
 }
 
@@ -191,17 +204,21 @@ export function getFailureMessage(reason) {
 }
 
 export function getRemainingAttemptsMessage(message, attemptFailures) {
-  const remainingAttempts = Math.max(0, MAX_VERIFICATION_STREAK - attemptFailures);
+  const remainingAttempts = Math.max(0, MAX_FAILURES - attemptFailures);
   const attemptLabel = remainingAttempts === 1 ? "attempt" : "attempts";
   return `${message} ${remainingAttempts} ${attemptLabel} remaining`;
 }
 
-export function getProgressPercentage(streakCount) {
-  return (streakCount / MAX_VERIFICATION_STREAK) * 100;
+export function getProgressPercentage(successfulChallenges, requiredChallengesToPass) {
+  if (!requiredChallengesToPass) {
+    return 0;
+  }
+
+  return (successfulChallenges / requiredChallengesToPass) * 100;
 }
 
-export function getProgressLabel(streakCount) {
-  return `Progress ${streakCount + 1}/${MAX_VERIFICATION_STREAK}`;
+export function getProgressLabel(successfulChallenges, requiredChallengesToPass) {
+  return `Progress ${successfulChallenges + 1}/${requiredChallengesToPass}`;
 }
 
 export function getVisualStateName({ verified, attemptFailures }) {
@@ -248,4 +265,30 @@ export function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function normalizeAppBasePath(value) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim().replace(/\/+$/g, "");
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function normalizeRelativePath(value) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }

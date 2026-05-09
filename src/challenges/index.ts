@@ -32,6 +32,7 @@ export function getRandomChallengeDefinition(): ChallengeDefinition {
 
 export function createResultTokenPayload(args: {
 	tokenId: string;
+	verificationSessionId: string;
 	sessionId: string;
 	siteKey: string;
 	hostname: string;
@@ -43,6 +44,7 @@ export function createResultTokenPayload(args: {
 }): ResultTokenPayload {
 	return {
 		tid: args.tokenId,
+		vid: args.verificationSessionId,
 		sid: args.sessionId,
 		sk: args.siteKey,
 		host: args.hostname,

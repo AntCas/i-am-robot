@@ -10,9 +10,9 @@ import {
   getProgressPercentage,
   getRemainingAttemptsMessage,
   getVisualStateName,
-  getWidgetAppBasePath,
+  resolveWidgetConfig,
   getWidgetMarkup,
-  MAX_VERIFICATION_STREAK,
+  MAX_FAILURES,
 } from "./widget-logic.js";
 
 class RobotCheckWidget extends HTMLElement {
@@ -22,8 +22,9 @@ class RobotCheckWidget extends HTMLElement {
     }
 
     this.dataset.rendered = "true";
-    this.state = createInitialWidgetState(getWidgetAppBasePath(window.location.pathname));
-    this.innerHTML = getWidgetMarkup();
+    const config = resolveWidgetConfig(this, window.location.pathname);
+    this.state = createInitialWidgetState(config);
+    this.innerHTML = getWidgetMarkup(config);
     this.cacheDomReferences();
     this.registerEventHandlers();
     this.applyVisualState();
@@ -65,7 +66,7 @@ class RobotCheckWidget extends HTMLElement {
   }
 
   async startVerificationFlow() {
-    if (this.state.attemptFailures >= 3) {
+    if (this.state.attemptFailures >= MAX_FAILURES) {
       this.checkbox.checked = false;
       this.showFailureState("No attempts remaining.", false);
       return;
@@ -81,7 +82,10 @@ class RobotCheckWidget extends HTMLElement {
     this.expandedElement.classList.remove("hidden");
     this.hideResultMessage();
     this.verifyButton.disabled = true;
-    this.state.streakCount = 0;
+    this.state.sessionId = null;
+    this.state.verificationSessionId = null;
+    this.state.successfulChallenges = 0;
+    this.state.requiredChallengesToPass = 1;
     this.state.verified = false;
     this.state.resultToken = null;
     this.state.resultTokenExpiresAt = null;
@@ -92,12 +96,14 @@ class RobotCheckWidget extends HTMLElement {
   resetVerificationFlow({ preserveStatus = false } = {}) {
     this.clearCountdownTimer();
     this.state.sessionId = null;
+    this.state.verificationSessionId = null;
     this.state.challengeType = null;
     this.state.deadlineAt = null;
     this.state.verified = false;
     this.state.resultToken = null;
     this.state.resultTokenExpiresAt = null;
-    this.state.streakCount = 0;
+    this.state.successfulChallenges = 0;
+    this.state.requiredChallengesToPass = 1;
 
     if (!preserveStatus) {
       this.restoreDefaultCopy();
@@ -145,11 +151,11 @@ class RobotCheckWidget extends HTMLElement {
         return;
       }
 
-      this.storeVerificationToken(responseData.resultToken, responseData.expiresAt);
-      this.state.streakCount += 1;
+      this.applyVerificationProgress(responseData);
       this.updateProgressBar();
 
-      if (this.hasCompletedVerification()) {
+      if (responseData.verified) {
+        this.storeVerificationToken(responseData.resultToken, responseData.expiresAt);
         this.finishVerification();
         return;
       }
@@ -171,7 +177,13 @@ class RobotCheckWidget extends HTMLElement {
       const response = await fetch(this.getChallengeStartUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createStartChallengeRequestBody(window.location.host)),
+        body: JSON.stringify(
+          createStartChallengeRequestBody(
+            this.state.config.siteKey,
+            window.location.host,
+            this.state.verificationSessionId,
+          ),
+        ),
       });
 
       const responseData = await response.json();
@@ -184,10 +196,15 @@ class RobotCheckWidget extends HTMLElement {
       }
 
       this.state.sessionId = responseData.sessionId;
+      this.state.verificationSessionId = responseData.verificationSessionId;
       this.state.challengeType = responseData.challenge.type;
       this.state.deadlineAt = responseData.deadlineAt;
+      this.applyVerificationProgress(responseData);
       this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.type, responseData.challenge.prompt);
-      this.challengeTypeElement.textContent = getProgressLabel(this.state.streakCount);
+      this.challengeTypeElement.textContent = getProgressLabel(
+        this.state.successfulChallenges,
+        this.state.requiredChallengesToPass,
+      );
       this.metaElement.classList.remove("hidden");
       this.verifyButton.disabled = false;
       this.startCountdownTimer();
@@ -225,10 +242,6 @@ class RobotCheckWidget extends HTMLElement {
     this.dispatchVerificationPassedEvent();
   }
 
-  hasCompletedVerification() {
-    return this.state.streakCount >= MAX_VERIFICATION_STREAK;
-  }
-
   storeVerificationToken(resultToken, expiresAt) {
     this.state.resultToken = resultToken ?? null;
     this.state.resultTokenExpiresAt = expiresAt ?? null;
@@ -252,7 +265,10 @@ class RobotCheckWidget extends HTMLElement {
   }
 
   updateProgressBar() {
-    this.progressBarElement.style.width = `${getProgressPercentage(this.state.streakCount)}%`;
+    this.progressBarElement.style.width = `${getProgressPercentage(
+      this.state.successfulChallenges,
+      this.state.requiredChallengesToPass,
+    )}%`;
   }
 
   applyVisualState() {
@@ -296,11 +312,21 @@ class RobotCheckWidget extends HTMLElement {
   }
 
   getChallengeStartUrl() {
-    return `${window.location.origin}${this.state.appBasePath}/api/challenge/start`;
+    return `${window.location.origin}${this.state.config.appBasePath}/api/challenge/start`;
   }
 
   getChallengeSubmitUrl() {
-    return `${window.location.origin}${this.state.appBasePath}/api/challenge/submit`;
+    return `${window.location.origin}${this.state.config.appBasePath}/api/challenge/submit`;
+  }
+
+  applyVerificationProgress(responseData) {
+    if (!responseData.verification) {
+      return;
+    }
+
+    this.state.verificationSessionId = responseData.verificationSessionId ?? this.state.verificationSessionId;
+    this.state.successfulChallenges = responseData.verification.successfulChallenges ?? 0;
+    this.state.requiredChallengesToPass = responseData.verification.requiredChallengesToPass ?? 1;
   }
 
   dispatchVerificationPassedEvent() {
