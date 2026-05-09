@@ -14,6 +14,8 @@ class RobotCheckWidget extends HTMLElement {
       streakCount: 0,
       attemptFailures: 0,
       verified: false,
+      resultToken: null,
+      resultTokenExpiresAt: null,
     };
 
     this.innerHTML = `
@@ -135,8 +137,11 @@ class RobotCheckWidget extends HTMLElement {
     this.verifyButton.disabled = true;
     this.state.streakCount = 0;
     this.state.verified = false;
+    this.state.resultToken = null;
+    this.state.resultTokenExpiresAt = null;
     this.updateProgress();
     this.challengeContainer.innerHTML = '<p class="muted">Loading challenge...</p>';
+
     await this.loadNextChallenge();
   }
 
@@ -146,6 +151,8 @@ class RobotCheckWidget extends HTMLElement {
     this.state.challengeType = null;
     this.state.deadlineAt = null;
     this.state.verified = false;
+    this.state.resultToken = null;
+    this.state.resultTokenExpiresAt = null;
 
     if (!preserveStatus) {
       this.titleElement.textContent = "I'm a robot";
@@ -190,6 +197,8 @@ class RobotCheckWidget extends HTMLElement {
 
       const data = await response.json();
       if (data.success) {
+        this.state.resultToken = data.resultToken ?? null;
+        this.state.resultTokenExpiresAt = data.expiresAt ?? null;
         this.state.streakCount += 1;
         this.updateProgress();
 
@@ -202,6 +211,7 @@ class RobotCheckWidget extends HTMLElement {
           this.verifyButton.disabled = true;
           this.clearTimer();
           this.syncVisualState();
+          this.dispatchVerificationPassedEvent();
           return;
         }
 
@@ -438,6 +448,18 @@ class RobotCheckWidget extends HTMLElement {
     }
 
     return "";
+  }
+
+  dispatchVerificationPassedEvent() {
+    this.dispatchEvent(
+      new CustomEvent("robot-verification-passed", {
+        bubbles: true,
+        detail: {
+          resultToken: this.state.resultToken,
+          expiresAt: this.state.resultTokenExpiresAt,
+        },
+      }),
+    );
   }
 
   escapeHtml(value) {

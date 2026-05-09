@@ -102,7 +102,7 @@ const API_PATH_PREFIX = `${APP_BASE_PATH}/api`;
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Methods": "POST, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type",
+	"Access-Control-Allow-Headers": "Authorization, Content-Type",
 	"Access-Control-Max-Age": "86400",
 };
 
@@ -587,10 +587,6 @@ function isHealthPath(pathname: string): boolean {
 function toAssetPath(pathname: string): string | null {
 	if (pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`) {
 		return "/index.html";
-	}
-
-	if (pathname === `${APP_BASE_PATH}/debug` || pathname === `${APP_BASE_PATH}/debug/`) {
-		return "/debug/index.html";
 	}
 
 	if (pathname === `${APP_BASE_PATH}/privacy` || pathname === `${APP_BASE_PATH}/privacy/`) {

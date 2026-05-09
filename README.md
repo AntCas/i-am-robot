@@ -1,8 +1,8 @@
 # I Am Robot
 
-Cloudflare Worker demo for a path-mounted "I'm a robot" challenge service.
+Cloudflare Worker for a path-mounted "I'm a robot" verification widget.
 
-The app now deploys as a single Worker that:
+The app deploys as a single Worker that:
 
 - serves the static frontend from [site/index.html](/Users/primaryuser/Desktop/i-am-robot/site/index.html)
 - serves the API from [src/index.ts](/Users/primaryuser/Desktop/i-am-robot/src/index.ts)
@@ -78,8 +78,6 @@ Open either:
 
 - [http://127.0.0.1:8787/im-a-robot](http://127.0.0.1:8787/im-a-robot)
 - [http://127.0.0.1:8787/](http://127.0.0.1:8787/)
-
-For local Worker-served assets, leave the `API base` field empty so the UI uses same-origin requests automatically.
 
 ## Deploy To `castrio.me/im-a-robot`
 
@@ -172,7 +170,7 @@ Then verify:
 
 - the page loads
 - CSS and JS load correctly
-- `New Challenge` loads a challenge
+- the widget loads a challenge
 - successful answers return a signed `resultToken`
 
 ## API Examples
@@ -213,4 +211,3 @@ Then verify:
 - Session records are stored in KV with a short TTL.
 - Result tokens are HMAC-signed by the Worker.
 - The countdown shown in the UI is cosmetic. The server-side deadline is authoritative.
-- This is still a demo and does not yet include one-time-use token revocation, analytics, or stateful challenges like chess.
