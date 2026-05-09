@@ -26,6 +26,8 @@ Current challenge types:
 Each site config can also set:
 
 - `requiredChallengesToPass`: how many consecutive successful challenges are required before the Worker issues a valid `resultToken`
+- `allowedHostnames`: which hostnames may embed and use the widget
+- `secret`: the server-side secret used when calling the verify API
 
 ## Local Development
 
@@ -42,10 +44,7 @@ npx wrangler kv namespace create SITES
 npx wrangler kv namespace create SESSIONS
 ```
 
-Copy the returned IDs into [wrangler.toml](/Users/primaryuser/Desktop/i-am-robot/wrangler.toml) by replacing:
-
-- `replace-with-sites-kv-id`
-- `replace-with-sessions-kv-id`
+Then update the `id` fields for the `SITES` and `SESSIONS` bindings in [wrangler.toml](/Users/primaryuser/Desktop/i-am-robot/wrangler.toml).
 
 ### 3. Add a signing secret
 
@@ -121,8 +120,9 @@ npx wrangler login
 [wrangler.toml](/Users/primaryuser/Desktop/i-am-robot/wrangler.toml) should contain:
 
 - the real KV namespace IDs
-- the route:
-  - `castrio.me/im-a-robot*`
+- both routes:
+  - `castrio.me/im-a-robot`
+  - `castrio.me/im-a-robot/*`
 - the static asset directory:
   - `./site`
 
@@ -163,8 +163,9 @@ In the Cloudflare dashboard:
 2. Open the `i-am-robot` Worker
 3. Go to `Settings`
 4. Open `Domains & Routes`
-5. Confirm the route is attached to:
-   - `castrio.me/im-a-robot*`
+5. Confirm both routes are attached:
+   - `castrio.me/im-a-robot`
+   - `castrio.me/im-a-robot/*`
 
 ### 7. Test production
 
@@ -192,6 +193,51 @@ The demo page uses:
 
 For the hosted service shape, `site-key` should be the public identifier you issue to customers. The Worker now treats challenge progress as server-owned state, so clients cannot mint a valid `resultToken` early by skipping the widget's UI flow.
 
+You also need to load the widget script:
+
+```html
+<script type="module" src="/im-a-robot/widget.js"></script>
+```
+
+Optional widget attributes:
+
+- `site-key`: public site identifier; defaults to `site_demo_123`
+- `app-base-path`: base path where the Worker is mounted; defaults to `/im-a-robot` when embedded under that path and `""` otherwise
+- `privacy-path`: override for the Privacy link
+- `terms-path`: override for the Terms link
+
+When verification completes, the widget dispatches a bubbling `robot-verification-passed` event with:
+
+```js
+{
+  detail: {
+    resultToken: "header.payload.signature",
+    expiresAt: "2026-05-09T12:34:56.000Z"
+  }
+}
+```
+
+Example host-page integration:
+
+```html
+<robot-check-widget
+  id="robot-check"
+  site-key="site_demo_123"
+  app-base-path="/im-a-robot"
+></robot-check-widget>
+
+<script type="module" src="/im-a-robot/widget.js"></script>
+<script>
+  document.getElementById("robot-check").addEventListener("robot-verification-passed", async (event) => {
+    const { resultToken, expiresAt } = event.detail;
+    console.log("Verification passed", { resultToken, expiresAt });
+
+    // Send resultToken to your own backend, then have your backend call
+    // POST /im-a-robot/api/verify with your site secret.
+  });
+</script>
+```
+
 ## API Examples
 
 ### `POST /im-a-robot/api/challenge/start`
@@ -205,6 +251,51 @@ For the hosted service shape, `site-key` should be the public identifier you iss
 }
 ```
 
+Notes:
+
+- `siteKey` is required.
+- `mode` currently must be `prove_robot`.
+- `verificationSessionId` is optional on the first request and should be sent on later rounds to continue the same verification session.
+- `hostname` is normally sent by the widget as `window.location.host`.
+
+Success response:
+
+```json
+{
+  "verificationSessionId": "vfy_123",
+  "verification": {
+    "successfulChallenges": 0,
+    "requiredChallengesToPass": 3,
+    "remainingChallenges": 3,
+    "status": "active"
+  },
+  "sessionId": "sess_123",
+  "challenge": {
+    "type": "code_error",
+    "prompt": {
+      "description": "Find the bug",
+      "code": "for (let i = 0; i <= items.length; i += 1) {}",
+      "choices": [
+        { "label": "Off-by-one loop", "value": "off_by_one" }
+      ]
+    }
+  },
+  "issuedAt": "2026-05-09T12:34:56.000Z",
+  "deadlineAt": "2026-05-09T12:35:04.000Z"
+}
+```
+
+Common errors:
+
+- `400 invalid_site_key`
+- `400 invalid_mode`
+- `400 invalid_hostname`
+- `403 hostname_not_allowed`
+- `404 invalid_site_key`
+- `404 verification_session_not_found`
+- `409 invalid_verification_session`
+- `409 verification_session_closed`
+
 ### `POST /im-a-robot/api/challenge/submit`
 
 ```json
@@ -216,6 +307,78 @@ For the hosted service shape, `site-key` should be the public identifier you iss
 }
 ```
 
+Notes:
+
+- `sessionId` is required.
+- `answer` is challenge-specific. The widget always sends an object with a `value` field.
+
+Failure response:
+
+```json
+{
+  "success": false,
+  "verdict": "failed",
+  "reason": "incorrect_answer",
+  "completedAt": "2026-05-09T12:35:01.000Z",
+  "verificationSessionId": "vfy_123",
+  "verification": {
+    "successfulChallenges": 0,
+    "requiredChallengesToPass": 3,
+    "remainingChallenges": 3,
+    "status": "failed"
+  }
+}
+```
+
+Intermediate success response:
+
+```json
+{
+  "success": true,
+  "verified": false,
+  "verdict": "robot",
+  "score": 1,
+  "completedAt": "2026-05-09T12:35:01.000Z",
+  "verificationSessionId": "vfy_123",
+  "verification": {
+    "successfulChallenges": 1,
+    "requiredChallengesToPass": 3,
+    "remainingChallenges": 2,
+    "status": "active"
+  }
+}
+```
+
+Final success response:
+
+```json
+{
+  "success": true,
+  "verified": true,
+  "verdict": "robot",
+  "score": 1,
+  "verificationSessionId": "vfy_123",
+  "verification": {
+    "successfulChallenges": 3,
+    "requiredChallengesToPass": 3,
+    "remainingChallenges": 0,
+    "status": "completed"
+  },
+  "resultToken": "header.payload.signature",
+  "completedAt": "2026-05-09T12:35:01.000Z",
+  "expiresAt": "2026-05-09T12:40:01.000Z"
+}
+```
+
+Common errors:
+
+- `400 session_not_found`
+- `404 session_not_found`
+- `404 verification_session_not_found`
+- `409 session_already_completed`
+- `409 verification_session_closed`
+- `500 missing_signing_secret`
+
 ### `POST /im-a-robot/api/verify`
 
 ```json
@@ -225,9 +388,47 @@ For the hosted service shape, `site-key` should be the public identifier you iss
 }
 ```
 
+This endpoint is intended for your backend, not the browser widget. A client page should pass the `resultToken` to your server, and your server should call this endpoint with the site secret.
+
+Success response:
+
+```json
+{
+  "success": true,
+  "verdict": "robot",
+  "challengeType": "code_error",
+  "score": 1,
+  "hostname": "castrio.me",
+  "issuedAt": "2026-05-09T12:34:56.000Z",
+  "completedAt": "2026-05-09T12:35:01.000Z"
+}
+```
+
+Common errors:
+
+- `400 invalid_secret`
+- `400 invalid_result_token`
+- `401 invalid_secret`
+- `401 invalid_result_token`
+- `404 verification_session_not_found`
+- `404 session_not_found`
+- `500 missing_signing_secret`
+
+### `GET /im-a-robot/health`
+
+Success response:
+
+```json
+{
+  "ok": true
+}
+```
+
 ## Notes
 
 - Static assets are served by the same Worker using Cloudflare Workers static assets.
-- Session records are stored in KV with a short TTL.
-- Result tokens are HMAC-signed by the Worker.
+- Challenge sessions and verification sessions are stored in KV with a 15 minute TTL.
+- Result tokens are HMAC-signed by the Worker and expire after 5 minutes.
 - The countdown shown in the UI is cosmetic. The server-side deadline is authoritative.
+- Allowed hostnames are enforced per site config.
+- The Worker accepts both root-style paths like `/api/verify` and path-mounted paths like `/im-a-robot/api/verify`.
