@@ -1,4 +1,4 @@
-import type { ResultTokenPayload } from "../types";
+import type { ResultTokenPayload } from "../types.ts";
 
 const TOKEN_HEADER = { alg: "HS256", typ: "RBT" };
 

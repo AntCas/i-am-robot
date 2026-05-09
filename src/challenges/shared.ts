@@ -1,4 +1,4 @@
-import type { ChallengeScoreContext, ChallengeScoreResult } from "../types";
+import type { ChallengeScoreContext, ChallengeScoreResult } from "../types.ts";
 
 export function wasSubmittedAfterDeadline(context: ChallengeScoreContext): boolean {
 	return context.submittedAt > context.deadlineAt;

@@ -1,4 +1,4 @@
-import { APP_BASE_PATH, API_PATH_PREFIX } from "../challenges";
+import { APP_BASE_PATH, API_PATH_PREFIX } from "../challenges/index.ts";
 
 // This module keeps request/response helpers pure and easy to test.
 

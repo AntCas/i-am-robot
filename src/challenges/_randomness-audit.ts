@@ -1,5 +1,5 @@
-import { createFailedScore, createShuffledCopy, createSuccessfulScore, wasSubmittedAfterDeadline } from "./shared";
-import type { ChallengeDefinition, ChoiceChallengeAnswer, ChoiceChallengeGradingKey } from "../types";
+import { createFailedScore, createShuffledCopy, createSuccessfulScore, wasSubmittedAfterDeadline } from "./shared.ts";
+import type { ChallengeDefinition, ChoiceChallengeAnswer, ChoiceChallengeGradingKey } from "../types.ts";
 
 const RANDOMNESS_AUDIT_LABELS = ["A", "B", "C", "D"];
 

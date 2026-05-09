@@ -6,7 +6,7 @@ import {
 	getChallengeDefinitionByType,
 	getRandomChallengeDefinition,
 	getRandomId,
-} from "./challenges";
+} from "./challenges/index.ts";
 import {
 	createJsonErrorResponse,
 	createJsonResponse,
@@ -17,8 +17,8 @@ import {
 	isAllowedHostname,
 	normalizeHostnameInput,
 	normalizeRequestPathname,
-} from "./utils/http";
-import { signResultToken, verifyResultToken } from "./utils/token";
+} from "./utils/http.ts";
+import { signResultToken, verifyResultToken } from "./utils/token.ts";
 import type {
 	ChallengeSession,
 	ChallengeGradingKey,
@@ -30,7 +30,7 @@ import type {
 	VerifyRequestBody,
 	VerificationPolicy,
 	VerificationSession,
-} from "./types";
+} from "./types.ts";
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {

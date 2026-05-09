@@ -1,5 +1,5 @@
-import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared";
-import type { ChallengeDefinition, IntegerChallengeAnswer, IntegerChallengeGradingKey } from "../types";
+import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
+import type { ChallengeDefinition, IntegerChallengeAnswer, IntegerChallengeGradingKey } from "../types.ts";
 
 export const timedMathChallenge: ChallengeDefinition = {
 	type: "timed_math",

@@ -4,8 +4,8 @@ import {
 	createSuccessfulScore,
 	getRandomInteger,
 	wasSubmittedAfterDeadline,
-} from "./shared";
-import type { ChallengeDefinition, ChoiceChallengeAnswer, ChoiceChallengeGradingKey } from "../types";
+} from "./shared.ts";
+import type { ChallengeDefinition, ChoiceChallengeAnswer, ChoiceChallengeGradingKey } from "../types.ts";
 
 const CODE_ERROR_CHOICES = [
 	{ value: "mutates_input", label: "It mutates the input array in place." },
