@@ -1,4 +1,10 @@
-import { createFailedScore, createShuffledCopy, createSuccessfulScore, wasSubmittedAfterDeadline } from "./shared";
+import {
+	createFailedScore,
+	createShuffledCopy,
+	createSuccessfulScore,
+	getRandomInteger,
+	wasSubmittedAfterDeadline,
+} from "./shared";
 import type { ChallengeDefinition } from "../types";
 
 interface CodeErrorAnswer {
@@ -6,16 +12,36 @@ interface CodeErrorAnswer {
 }
 
 interface CodeErrorGradingKey {
-	expectedChoice: string;
+	expectedChoice: CodeErrorChoiceValue;
 }
 
-export const codeErrorChallenge: ChallengeDefinition = {
-	type: "code_error",
-	async start() {
-		return {
-			promptPayload: {
-				description: "Find the bug in the snippet. Pick the best answer.",
-				code: `function average(values) {
+const CODE_ERROR_CHOICES = [
+	{ value: "mutates_input", label: "It mutates the input array in place." },
+	{ value: "off_by_one", label: "The loop runs one element too far and reads past the end." },
+	{ value: "wrong_divisor", label: "It divides by the sum instead of the length." },
+	{ value: "const_sum", label: "The sum variable is declared as const but then reassigned." },
+] as const;
+
+type CodeErrorChoiceValue = (typeof CODE_ERROR_CHOICES)[number]["value"];
+
+interface CodeErrorPrompt {
+	code: string;
+	expectedChoice: CodeErrorChoiceValue;
+}
+
+const CODE_ERROR_PROMPTS: CodeErrorPrompt[] = [
+	{
+		code: `function median(values) {
+  values.sort((left, right) => left - right);
+
+  const middle = Math.floor(values.length / 2);
+
+  return values[middle];
+}`,
+		expectedChoice: "mutates_input",
+	},
+	{
+		code: `function average(values) {
   let sum = 0;
 
   for (let i = 0; i <= values.length; i++) {
@@ -24,15 +50,47 @@ export const codeErrorChallenge: ChallengeDefinition = {
 
   return sum / values.length;
 }`,
-				choices: createShuffledCopy([
-					{ value: "mutates_input", label: "It mutates the input array in place." },
-					{ value: "off_by_one", label: "The loop runs one element too far and reads past the end." },
-					{ value: "wrong_divisor", label: "It divides by the sum instead of the length." },
-					{ value: "const_sum", label: "The sum variable should be a const." },
-				]),
+		expectedChoice: "off_by_one",
+	},
+	{
+		code: `function average(values) {
+  let sum = 0;
+
+  for (const value of values) {
+    sum += value;
+  }
+
+  return sum / sum;
+}`,
+		expectedChoice: "wrong_divisor",
+	},
+	{
+		code: `function average(values) {
+  const sum = 0;
+
+  for (const value of values) {
+    sum += value;
+  }
+
+  return sum / values.length;
+}`,
+		expectedChoice: "const_sum",
+	},
+];
+
+export const codeErrorChallenge: ChallengeDefinition = {
+	type: "code_error",
+	async start() {
+		const prompt = CODE_ERROR_PROMPTS[getRandomInteger(0, CODE_ERROR_PROMPTS.length - 1)];
+
+		return {
+			promptPayload: {
+				description: "Find the bug in the snippet. Pick the best answer.",
+				code: prompt.code,
+				choices: createShuffledCopy([...CODE_ERROR_CHOICES]),
 			},
 			gradingKey: {
-				expectedChoice: "off_by_one",
+				expectedChoice: prompt.expectedChoice,
 			},
 			timeLimitMs: 7000,
 		};
