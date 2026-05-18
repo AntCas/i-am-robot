@@ -6,30 +6,21 @@
   <title>I'm a robot</title>
   <link rel="icon" type="image/svg+xml" href="/im-a-robot/favicon.svg">
   <link rel="stylesheet" href="/im-a-robot/styles.css">
-  <style>
-    .landing-links {
-      display: flex;
-      justify-content: center;
-      margin-top: 20px;
-    }
-
-    .landing-links a {
-      color: #17324d;
-      font: 600 0.95rem/1.2 "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
-      text-decoration: none;
-      border-bottom: 1px solid rgba(23, 50, 77, 0.25);
-      padding-bottom: 2px;
-    }
-  </style>
 </head>
 <body>
   <main class="landing-page">
+    <header class="landing-header">
+      <img class="landing-header-mark" src="/im-a-robot/favicon.svg" alt="" aria-hidden="true">
+      <h1 class="landing-header-title">I'm a robot</h1>
+    </header>
+
     <section class="widget-shell">
       <robot-check-widget site-key="site_demo_123" app-base-path="/im-a-robot"></robot-check-widget>
-      <div class="landing-links">
-        <a href="/im-a-robot/docs">API Docs</a>
-      </div>
     </section>
+
+    <footer class="landing-footer">
+      <p class="landing-footer-line">A website by <a href="https://castrio.me">Anthony Castrio</a> in collaboration with robots. <a href="https://x.com/AnthonyCastrio">X</a> <a href="https://www.linkedin.com/in/antcas/">LinkedIn</a> <a href="https://buymeacoffee.com/antcas">BuyMeACoffee</a> <a href="/im-a-robot/docs">API Docs</a> <a href="https://github.com/AntCas/i-am-robot">GitHub</a></p>
+    </footer>
   </main>
 
   <script type="module" src="/im-a-robot/widget.js"></script>
