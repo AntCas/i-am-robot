@@ -466,3 +466,52 @@ test("message board rejects invalid bearer auth tokens", async () => {
 	assert.equal(responseData.success, false);
 	assert.equal(responseData.error, "invalid_result_token");
 });
+
+test("message board preflight requests return the expected CORS headers", async () => {
+	const env = createEnv();
+	const response = await worker.fetch(
+		new Request("https://robot.example/im-a-robot/api/messages", {
+			method: "OPTIONS",
+			headers: {
+				Origin: "https://evil.example",
+				"Access-Control-Request-Method": "POST",
+				"Access-Control-Request-Headers": "authorization, content-type",
+			},
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 200);
+	assert.equal(response.headers.get("Access-Control-Allow-Origin"), "*");
+	assert.equal(response.headers.get("Access-Control-Allow-Methods"), "GET, POST, OPTIONS");
+	assert.equal(response.headers.get("Access-Control-Allow-Headers"), "Authorization, Content-Type");
+	assert.equal(response.headers.get("Access-Control-Max-Age"), "86400");
+});
+
+test("message board cross-origin unauthorized posts are rejected with CORS headers", async () => {
+	const env = createEnv();
+	const response = await worker.fetch(
+		new Request("https://robot.example/im-a-robot/api/messages", {
+			method: "POST",
+			headers: {
+				Origin: "https://evil.example",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				handle: "intruder",
+				message: "Cross-origin attempt.",
+			}),
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 401);
+	assert.equal(response.headers.get("Access-Control-Allow-Origin"), "*");
+	assert.equal(response.headers.get("Access-Control-Allow-Methods"), "GET, POST, OPTIONS");
+	assert.equal(response.headers.get("Access-Control-Allow-Headers"), "Authorization, Content-Type");
+	assert.equal(response.headers.get("Access-Control-Max-Age"), "86400");
+
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, false);
+	assert.equal(responseData.error, "invalid_result_token");
+});
