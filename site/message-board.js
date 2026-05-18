@@ -35,7 +35,6 @@ formElement?.addEventListener("submit", async (event) => {
   const payload = {
     handle: String(formData.get("handle") ?? "").trim(),
     message: String(formData.get("message") ?? "").trim(),
-    resultToken: verification.resultToken,
   };
 
   submitButton.disabled = true;
@@ -44,7 +43,10 @@ formElement?.addEventListener("submit", async (event) => {
   try {
     const response = await fetch(`${window.location.origin}${APP_BASE_PATH}/api/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${verification.resultToken}`,
+      },
       body: JSON.stringify(payload),
     });
     const responseData = await response.json();

@@ -401,7 +401,7 @@ export async function handleGetMessagesRequest(env: Env): Promise<Response> {
 
 export async function handleCreateMessageRequest(request: Request, env: Env): Promise<Response> {
 	const requestBody = (await request.json()) as MessageBoardPostRequestBody;
-	const resultToken = requestBody.resultToken?.trim();
+	const resultToken = getMessageBoardAuthToken(request, requestBody);
 	const message = requestBody.message?.trim();
 	const requestedHandle = requestBody.handle?.trim();
 	const signingSecret = getSigningSecret(env);
@@ -439,6 +439,31 @@ export async function handleCreateMessageRequest(request: Request, env: Env): Pr
 		success: true,
 		post,
 	});
+}
+
+function getMessageBoardAuthToken(request: Request, requestBody: MessageBoardPostRequestBody): string | null {
+	const authorizationHeader = request.headers.get("Authorization");
+	const bearerToken = getBearerToken(authorizationHeader);
+
+	if (bearerToken) {
+		return bearerToken;
+	}
+
+	return requestBody.resultToken?.trim() || null;
+}
+
+function getBearerToken(authorizationHeader: string | null): string | null {
+	if (!authorizationHeader) {
+		return null;
+	}
+
+	const [scheme, ...tokenParts] = authorizationHeader.trim().split(/\s+/);
+	if (scheme?.toLowerCase() !== "bearer" || tokenParts.length === 0) {
+		return null;
+	}
+
+	const token = tokenParts.join(" ").trim();
+	return token || null;
 }
 
 export async function loadSiteConfig(env: Env, siteKey: string): Promise<SiteConfig | null> {

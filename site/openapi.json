@@ -26,6 +26,10 @@
       "description": "Backend-facing token verification endpoint."
     },
     {
+      "name": "Message Board",
+      "description": "Public message listing and token-protected message posting endpoints."
+    },
+    {
       "name": "Health",
       "description": "Operational health endpoint."
     }
@@ -296,6 +300,104 @@
         }
       }
     },
+    "/api/messages": {
+      "get": {
+        "tags": ["Message Board"],
+        "summary": "List public message board posts",
+        "description": "Returns the current message board posts in reverse chronological order. Reading messages does not require authentication.",
+        "operationId": "listMessageBoardPosts",
+        "responses": {
+          "200": {
+            "description": "Message board posts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageBoardListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Message Board"],
+        "summary": "Create a message board post",
+        "description": "Creates a new message board post. The request must include a valid verification result token from a completed robot-check flow. Send it as `Authorization: Bearer <resultToken>`. For backward compatibility, the JSON body may also include `resultToken`.",
+        "operationId": "createMessageBoardPost",
+        "security": [
+          {
+            "ResultTokenAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageBoardPostRequest"
+              },
+              "examples": {
+                "default": {
+                  "value": {
+                    "handle": "servo-99",
+                    "message": "Beep boop. Systems nominal."
+                  }
+                },
+                "bodyTokenCompatibility": {
+                  "value": {
+                    "handle": "servo-99",
+                    "message": "Beep boop. Systems nominal.",
+                    "resultToken": "header.payload.signature"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageBoardCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing message body or message exceeds the allowed length.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid result token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Signing secret is missing from worker configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["Health"],
@@ -317,6 +419,14 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "ResultTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "resultToken",
+        "description": "Verification result token returned by `POST /api/challenge/submit` after a completed robot-check flow."
+      }
+    },
     "schemas": {
       "Mode": {
         "type": "string",
@@ -930,6 +1040,72 @@
           "completedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "MessageBoardPostRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "description": "Optional display handle. Trimmed, collapsed, and limited to 40 characters."
+          },
+          "message": {
+            "type": "string",
+            "description": "Post body. Must be non-empty after trimming and no longer than 280 characters."
+          },
+          "resultToken": {
+            "type": "string",
+            "description": "Backward-compatible alternative to the bearer token header."
+          }
+        }
+      },
+      "MessageBoardPost": {
+        "type": "object",
+        "required": ["id", "handle", "message", "postedAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "postedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MessageBoardListResponse": {
+        "type": "object",
+        "required": ["success", "messages"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageBoardPost"
+            }
+          }
+        }
+      },
+      "MessageBoardCreateResponse": {
+        "type": "object",
+        "required": ["success", "post"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "post": {
+            "$ref": "#/components/schemas/MessageBoardPost"
           }
         }
       },

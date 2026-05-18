@@ -370,6 +370,65 @@ test("message board accepts verified posts and returns them to public readers", 
 	}
 });
 
+test("message board accepts verified posts via bearer auth token", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv();
+
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+				mode: "prove_robot",
+			}),
+			env as never,
+		);
+		const startData = await readJson(startResponse);
+
+		const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+		if (!challengeSession) {
+			throw new Error("Expected challenge session to be stored");
+		}
+
+		const submitResponse = await handleChallengeSubmitRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+				sessionId: startData.sessionId,
+				answer: getCorrectAnswerFromSession(challengeSession),
+			}),
+			env as never,
+		);
+		const submitData = await readJson(submitResponse);
+		const resultToken = submitData.resultToken;
+
+		assert.ok(typeof resultToken === "string");
+
+		const postResponse = await handleCreateMessageRequest(
+			new Request("https://robot.example/im-a-robot/api/messages", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${resultToken}`,
+				},
+				body: JSON.stringify({
+					handle: "servo-100",
+					message: "Bearer token confirmed.",
+				}),
+			}),
+			env as never,
+		);
+
+		assert.equal(postResponse.status, 200);
+		const postData = await readJson(postResponse);
+		assert.equal(postData.success, true);
+		assert.equal(postData.post.handle, "servo-100");
+		assert.equal(postData.post.message, "Bearer token confirmed.");
+	} finally {
+		Math.random = originalMathRandom;
+	}
+});
+
 test("message board rejects posts without a valid verification token", async () => {
 	const env = createEnv();
 	const response = await handleCreateMessageRequest(
@@ -379,6 +438,29 @@ test("message board rejects posts without a valid verification token", async () 
 		}),
 		env as never,
 	);
+	assert.equal(response.status, 401);
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, false);
+	assert.equal(responseData.error, "invalid_result_token");
+});
+
+test("message board rejects invalid bearer auth tokens", async () => {
+	const env = createEnv();
+	const response = await handleCreateMessageRequest(
+		new Request("https://robot.example/im-a-robot/api/messages", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: "Bearer definitely-not-valid",
+			},
+			body: JSON.stringify({
+				handle: "intruder",
+				message: "Let me in.",
+			}),
+		}),
+		env as never,
+	);
+
 	assert.equal(response.status, 401);
 	const responseData = await readJson(response);
 	assert.equal(responseData.success, false);
