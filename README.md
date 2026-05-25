@@ -12,43 +12,14 @@ The app deploys as a single Worker that:
 
 To embed the hosted verification widget on your own website:
 
-1. Create or update a site config whose `siteKey` is the public key you want to use and whose `allowedHostnames` includes your website host.
-2. Add a container and load the hosted iframe helper script on your page.
-3. Listen for the `robot-verification-passed` event and send the returned `resultToken` to your backend.
-4. Have your backend call `POST /im-a-robot/api/verify` with your site secret to validate the token server-side.
+1. Open `https://castrio.me/im-a-robot/register`.
+2. Enter a site key and the website hostname that will embed the widget.
+3. Copy the generated embed snippet into your website.
+4. Listen for the `robot-verification-passed` event and send the returned `resultToken` to your backend.
 
-Example site config:
+The registration page creates the site record, stores the generated site secret server-side, and returns copyable iframe embed code for the hostname you entered.
 
-```bash
-pnpm wrangler kv key put --binding SITES "site:site_customer_123" '{
-  "siteKey": "site_customer_123",
-  "secret": "replace-with-a-real-secret",
-  "allowedHostnames": ["customer.example"]
-}'
-```
-
-Example host-page embed:
-
-```html
-<div data-robot-check data-site-key="site_customer_123"></div>
-
-<script type="module" src="https://castrio.me/im-a-robot/embed-host.js"></script>
-<script>
-  document
-    .querySelector("[data-robot-check]")
-    .addEventListener("robot-verification-passed", async (event) => {
-      const { resultToken, expiresAt } = event.detail;
-
-      await fetch("/your-backend/verify-robot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resultToken, expiresAt }),
-      });
-    });
-</script>
-```
-
-For the full iframe options and the raw `iframe` version without the helper script, see [Embed Examples](#embed-examples).
+For local testing, open `http://127.0.0.1:8787/im-a-robot/register` while `pnpm run dev` is running. For the full iframe options and the raw `iframe` version without the helper script, see [Embed Examples](#embed-examples).
 
 ## Runtime Shape
 

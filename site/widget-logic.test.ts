@@ -175,6 +175,7 @@ test("resolveWidgetConfig defaults docsPath from app base path", () => {
 	assert.deepEqual(resolveWidgetConfig(element, "/im-a-robot/"), {
 		appBasePath: "/im-a-robot",
 		siteKey: "site_demo_123",
+		hostname: null,
 		docsPath: "/im-a-robot/docs/",
 		privacyPath: "/im-a-robot/privacy",
 		termsPath: "/im-a-robot/terms",
