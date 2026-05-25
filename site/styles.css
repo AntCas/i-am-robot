@@ -163,6 +163,66 @@ body > * {
   resize: vertical;
 }
 
+.register-examples {
+  display: grid;
+  gap: 1rem;
+}
+
+.register-language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  padding: 0.25rem;
+  border: 1px solid #cddff8;
+  border-radius: var(--widget-control-radius);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.register-language-switcher button {
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: calc(var(--widget-control-radius) - 2px);
+  background: transparent;
+  color: #42576d;
+  font: 400 0.9rem/1 "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.register-language-switcher button.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.register-language-switcher button:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.register-example {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.register-example h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.register-example pre {
+  margin: 0;
+  padding: 0.95rem 1rem;
+  border-radius: 12px;
+  background: #111827;
+  color: #f3f4f6;
+  overflow-x: auto;
+  font: 400 0.88rem/1.55 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.register-example code {
+  font: inherit;
+}
+
 .widget-shell {
   width: min(100%, 640px);
   margin: 0 auto;

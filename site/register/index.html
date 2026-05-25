@@ -15,6 +15,10 @@
     </p>
 
     <section class="register-card" aria-labelledby="register-form-title">
+      <div class="register-card-header">
+        <h2 id="register-form-title">Step 1: Register</h2>
+      </div>
+
       <form class="register-form" data-role="register-form">
         <label class="message-board-label">
           Website hostname
@@ -36,21 +40,145 @@
       </form>
     </section>
 
-    <section class="register-card hidden" aria-labelledby="register-result-title" data-role="result-card">
+    <section class="register-card" aria-labelledby="register-result-title" data-role="result-card">
       <div class="register-card-header">
-        <h2 id="register-result-title">Embed code</h2>
+        <h2 id="register-result-title">Step 2: Embed code</h2>
       </div>
 
       <div class="register-snippet">
         <label class="message-board-label">
           Copy this snippet into your website
-          <textarea rows="12" readonly data-role="embed-code"></textarea>
+          <textarea rows="12" readonly data-role="embed-code" placeholder="Generate embed code in Step 1 to fill this in."></textarea>
         </label>
 
         <div class="register-form-row">
-          <button type="button" data-role="copy-button">Copy embed code</button>
+          <button type="button" data-role="copy-button" disabled>Copy embed code</button>
           <p class="register-form-status muted" data-role="copy-status"></p>
         </div>
+      </div>
+    </section>
+
+    <section class="register-card" aria-labelledby="register-events-title">
+      <div class="register-card-header">
+        <h2 id="register-events-title">Step 3: Listen for Events</h2>
+        <p class="muted">
+          Listen for the <code>robot-verification-passed</code> event and send the returned
+          <code>resultToken</code> to your backend.
+        </p>
+      </div>
+
+      <div class="register-example">
+        <h3>Frontend</h3>
+      </div>
+
+      <div class="register-language-switcher" role="tablist" aria-label="Frontend language examples">
+        <button type="button" class="is-active" role="tab" aria-selected="true" aria-controls="frontend-javascript-example" data-role="language-tab" data-language-group="frontend" data-language="javascript">JavaScript</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="frontend-react-example" data-role="language-tab" data-language-group="frontend" data-language="react">React</button>
+      </div>
+
+      <div class="register-examples">
+        <article class="register-example" id="frontend-javascript-example" role="tabpanel" data-role="language-panel" data-language-group="frontend" data-language="javascript">
+          <pre><code>document.addEventListener("robot-verification-passed", async (event) =&gt; {
+  const { resultToken } = event.detail;
+
+  const response = await fetch("/your-backend/verify-robot", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resultToken }),
+  });
+
+  const verification = await response.json();
+  if (verification.success) {
+    // Continue with the protected action.
+  }
+});</code></pre>
+        </article>
+
+        <article class="register-example hidden" id="frontend-react-example" role="tabpanel" data-role="language-panel" data-language-group="frontend" data-language="react">
+          <pre><code>import { useEffect } from "react";
+
+export function RobotVerificationListener({ onVerified }) {
+  useEffect(() =&gt; {
+    async function handleVerificationPassed(event) {
+      const { resultToken } = event.detail;
+
+      const response = await fetch("/your-backend/verify-robot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultToken }),
+      });
+
+      const verification = await response.json();
+      if (verification.success) {
+        onVerified?.(verification);
+      }
+    }
+
+    document.addEventListener("robot-verification-passed", handleVerificationPassed);
+    return () =&gt; {
+      document.removeEventListener("robot-verification-passed", handleVerificationPassed);
+    };
+  }, [onVerified]);
+
+  return null;
+}</code></pre>
+        </article>
+      </div>
+
+      <div class="register-example">
+        <h3>Backend</h3>
+      </div>
+
+      <div class="register-language-switcher" role="tablist" aria-label="Backend language examples">
+        <button type="button" class="is-active" role="tab" aria-selected="true" aria-controls="node-example" data-role="language-tab" data-language-group="backend" data-language="node">Node.js</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="python-example" data-role="language-tab" data-language-group="backend" data-language="python">Python</button>
+      </div>
+
+      <div class="register-examples">
+        <article class="register-example" id="node-example" role="tabpanel" data-role="language-panel" data-language-group="backend" data-language="node">
+          <pre><code>import express from "express";
+
+const app = express();
+app.use(express.json());
+
+app.post("/your-backend/verify-robot", async (request, response) =&gt; {
+  const { resultToken } = request.body;
+
+  const robotResponse = await fetch("https://castrio.me/im-a-robot/api/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      secret: process.env.I_AM_ROBOT_SITE_SECRET,
+      resultToken,
+    }),
+  });
+
+  response.status(robotResponse.status).json(await robotResponse.json());
+});</code></pre>
+        </article>
+
+        <article class="register-example hidden" id="python-example" role="tabpanel" data-role="language-panel" data-language-group="backend" data-language="python">
+          <pre><code>from flask import Flask, jsonify, request
+import os
+import requests
+
+app = Flask(__name__)
+
+@app.post("/your-backend/verify-robot")
+def verify_robot():
+    result_token = request.json["resultToken"]
+
+    response = requests.post(
+        "https://castrio.me/im-a-robot/api/verify",
+        json={
+            "secret": os.environ["I_AM_ROBOT_SITE_SECRET"],
+            "resultToken": result_token,
+        },
+        timeout=10,
+    )
+
+    return jsonify(response.json()), response.status_code</code></pre>
+        </article>
       </div>
     </section>
 
