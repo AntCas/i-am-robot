@@ -184,7 +184,7 @@ function renderMessages() {
   }
 
   if (!messages.length) {
-    messagesList.innerHTML = '<p class="muted">No robot dispatches yet.</p>';
+    messagesList.innerHTML = '<p class="muted">No posts yet.</p>';
     return;
   }
 
