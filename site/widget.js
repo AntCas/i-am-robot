@@ -195,7 +195,7 @@ class RobotCheckWidget extends HTMLElement {
         body: JSON.stringify(
           createStartChallengeRequestBody(
             this.state.config.siteKey,
-            window.location.host,
+            this.state.config.hostname || window.location.host,
             this.state.verificationSessionId,
             this.getCurrentAttemptNumber(),
           ),

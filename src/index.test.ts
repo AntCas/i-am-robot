@@ -13,6 +13,7 @@ import {
 import { chessPuzzleChallenge } from "./challenges/_chess-puzzle.ts";
 import { hashValueChallenge } from "./challenges/_hash-value.ts";
 import { challengeDefinitions } from "./challenges/index.ts";
+import { getStaticAssetPath } from "./utils/http.ts";
 
 class MemoryKVNamespace {
 	store: Map<string, string>;
@@ -68,13 +69,18 @@ class MemoryKVNamespace {
 }
 
 function createEnv({
+	allowedHostnames = ["castrio.me"],
 	requiredChallengesToPass,
 	widgetRequiredChallengesToPass,
-}: { requiredChallengesToPass?: number; widgetRequiredChallengesToPass?: number } = {}) {
+}: {
+	allowedHostnames?: string[];
+	requiredChallengesToPass?: number;
+	widgetRequiredChallengesToPass?: number;
+} = {}) {
 	const siteConfig: Record<string, unknown> = {
 		siteKey: "site_demo_123",
 		secret: "secret_demo_abc",
-		allowedHostnames: ["castrio.me"],
+		allowedHostnames,
 	};
 
 	if (requiredChallengesToPass !== undefined) {
@@ -161,6 +167,33 @@ test("challenge type catalog lists formats and non-live examples without creatin
 	assert.equal(hashValue.example.prompt.hashFunction, "SHA-256");
 	assert.equal(hashValue.example.prompt.valueToHash, "robot-check-42");
 	assert.equal(env.SESSIONS.store.size, 0);
+});
+
+test("embed page path resolves to the hosted iframe asset", () => {
+	assert.equal(getStaticAssetPath("/im-a-robot/embed"), "/embed/index.html");
+	assert.equal(getStaticAssetPath("/im-a-robot/embed/"), "/embed/index.html");
+});
+
+test("widget challenge start accepts an explicit embed hostname", async () => {
+	const env = createEnv({
+		allowedHostnames: ["customer.example"],
+	});
+	const response = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			mode: "widget",
+			hostname: "customer.example",
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 200);
+	const responseData = await readJson(response);
+	assert.equal(typeof responseData.sessionId, "string");
+
+	const session = await loadChallengeSession(env as never, responseData.sessionId);
+	assert.ok(session);
+	assert.equal(session.hostname, "customer.example");
 });
 
 test("verification uses the server-configured multi-challenge policy before issuing a token", async () => {

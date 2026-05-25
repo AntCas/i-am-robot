@@ -48,6 +48,10 @@ export function getStaticAssetPath(pathname: string): string | null {
 		return "/index.html";
 	}
 
+	if (pathname === `${APP_BASE_PATH}/embed` || pathname === `${APP_BASE_PATH}/embed/`) {
+		return "/embed/index.html";
+	}
+
 	if (pathname === `${APP_BASE_PATH}/privacy` || pathname === `${APP_BASE_PATH}/privacy/`) {
 		return "/privacy/index.html";
 	}

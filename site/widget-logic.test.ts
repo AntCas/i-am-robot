@@ -145,6 +145,7 @@ test("getWidgetMarkup includes a low-profile api docs hint", () => {
 	const markup = getWidgetMarkup({
 		appBasePath: "/im-a-robot",
 		siteKey: "site_demo_123",
+		hostname: null,
 		docsPath: "/im-a-robot/docs/",
 		privacyPath: "/im-a-robot/privacy",
 		termsPath: "/im-a-robot/terms",
@@ -161,6 +162,7 @@ test("resolveWidgetConfig defaults docsPath from app base path", () => {
 			const attrs: Record<string, string | null> = {
 				"app-base-path": "/im-a-robot",
 				"site-key": "site_demo_123",
+				hostname: null,
 				"docs-path": null,
 				"privacy-path": null,
 				"terms-path": null,

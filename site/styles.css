@@ -58,6 +58,26 @@ body > * {
   z-index: 1;
 }
 
+.embed-page {
+  min-height: 0;
+  background: transparent;
+}
+
+.embed-page::before,
+.embed-page::after {
+  display: none;
+}
+
+.embed-page > * {
+  position: static;
+  z-index: auto;
+}
+
+.embed-shell {
+  width: 100%;
+  padding: 0.75rem;
+}
+
 .landing-page,
 .copy-page {
   width: min(960px, calc(100vw - 2rem));
