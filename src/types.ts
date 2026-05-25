@@ -297,3 +297,9 @@ export interface MessageBoardPost {
 	postedAt: string;
 	verification: MessageBoardPostVerification;
 }
+
+export interface MessageBoardPostPage {
+	messages: MessageBoardPost[];
+	totalCount: number;
+	nextCursor: string | null;
+}

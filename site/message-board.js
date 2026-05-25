@@ -1,20 +1,38 @@
 const VERIFICATION_STORAGE_KEY = "robot-check-verification";
 const APP_BASE_PATH = "/im-a-robot";
+const MESSAGE_PAGE_SIZE = 10;
 
 const formElement = document.querySelector('[data-role="post-form"]');
 const submitButton = document.querySelector('[data-role="submit-button"]');
 const formStatus = document.querySelector('[data-role="form-status"]');
 const messagesList = document.querySelector('[data-role="messages-list"]');
 const messagesSummary = document.querySelector('[data-role="messages-summary"]');
+const messagesMore = document.querySelector('[data-role="messages-more"]');
+const loadOlderButton = document.querySelector('[data-role="messages-load-older"]');
+const messagesMoreStatus = document.querySelector('[data-role="messages-more-status"]');
 const messagesToggle = document.querySelector('[data-role="messages-toggle"]');
 const messagesToggleLabel = document.querySelector('[data-role="messages-toggle-label"]');
 const messagesPanel = document.querySelector('[data-role="messages-panel"]');
 
 let verification = readStoredVerification();
+let messageBoardState = {
+  messages: [],
+  totalCount: 0,
+  nextCursor: null,
+  isLoading: false,
+};
 
 syncComposerAccess();
 syncMessagesToggle();
 void loadMessages();
+
+loadOlderButton?.addEventListener("click", () => {
+  if (!messageBoardState.nextCursor) {
+    return;
+  }
+
+  void loadMessages({ cursor: messageBoardState.nextCursor, append: true });
+});
 
 document.addEventListener("robot-verification-passed", (event) => {
   verification = {
@@ -78,36 +96,91 @@ formElement?.addEventListener("submit", async (event) => {
   }
 });
 
-async function loadMessages() {
+async function loadMessages({ cursor = null, append = false } = {}) {
   if (!messagesList) {
     return;
   }
 
+  if (messageBoardState.isLoading) {
+    return;
+  }
+
+  messageBoardState.isLoading = true;
+  syncLoadOlderControls();
+  if (append) {
+    showMessagesMoreStatus("Loading older messages...", false);
+  } else {
+    clearMessagesMoreStatus();
+    messagesList.innerHTML = '<p class="muted">Loading messages...</p>';
+  }
+
   try {
-    const response = await fetch(`${window.location.origin}${APP_BASE_PATH}/api/messages`);
+    const requestUrl = new URL(`${window.location.origin}${APP_BASE_PATH}/api/messages`);
+    requestUrl.searchParams.set("limit", String(MESSAGE_PAGE_SIZE));
+    if (cursor) {
+      requestUrl.searchParams.set("cursor", cursor);
+    }
+
+    const response = await fetch(requestUrl);
     const responseData = await response.json();
 
     if (!response.ok || !responseData.success) {
+      if (append && messageBoardState.messages.length) {
+        showMessagesMoreStatus(formatApiError(responseData.error), true);
+        return;
+      }
+
+      messageBoardState = {
+        messages: [],
+        totalCount: 0,
+        nextCursor: null,
+        isLoading: true,
+      };
       messagesList.innerHTML = `<p class="muted">${escapeHtml(formatApiError(responseData.error))}</p>`;
       if (messagesSummary) {
         messagesSummary.textContent = "";
       }
+      clearMessagesMoreStatus();
       return;
     }
 
-    renderMessages(Array.isArray(responseData.messages) ? responseData.messages : []);
+    const pageMessages = Array.isArray(responseData.messages) ? responseData.messages : [];
+    const nextMessages = append ? [...messageBoardState.messages, ...pageMessages] : pageMessages;
+    messageBoardState = {
+      messages: nextMessages,
+      totalCount: normalizeTotalCount(responseData.totalCount, nextMessages.length),
+      nextCursor: normalizeCursor(responseData.nextCursor),
+      isLoading: true,
+    };
+    clearMessagesMoreStatus();
+    renderMessages();
   } catch (error) {
+    if (append && messageBoardState.messages.length) {
+      showMessagesMoreStatus(String(error), true);
+      return;
+    }
+
+    messageBoardState = {
+      messages: [],
+      totalCount: 0,
+      nextCursor: null,
+      isLoading: true,
+    };
     messagesList.innerHTML = `<p class="muted">${escapeHtml(String(error))}</p>`;
     if (messagesSummary) {
       messagesSummary.textContent = "";
     }
+    clearMessagesMoreStatus();
+  } finally {
+    messageBoardState.isLoading = false;
+    syncLoadOlderControls();
   }
 }
 
-function renderMessages(messages) {
-  const countLabel = messages.length === 1 ? "1 post" : `${messages.length} posts`;
+function renderMessages() {
+  const { messages, totalCount } = messageBoardState;
   if (messagesSummary) {
-    messagesSummary.textContent = countLabel;
+    messagesSummary.textContent = getMessagesSummaryLabel(messages.length, totalCount);
   }
 
   if (!messages.length) {
@@ -129,6 +202,17 @@ function renderMessages(messages) {
       `,
     )
     .join("");
+}
+
+function syncLoadOlderControls() {
+  if (!messagesMore || !loadOlderButton) {
+    return;
+  }
+
+  const hasMoreMessages = Boolean(messageBoardState.nextCursor);
+  messagesMore.classList.toggle("hidden", !hasMoreMessages);
+  loadOlderButton.disabled = messageBoardState.isLoading || !hasMoreMessages;
+  loadOlderButton.textContent = messageBoardState.isLoading && hasMoreMessages ? "Loading..." : "Load older messages";
 }
 
 function syncComposerAccess() {
@@ -210,6 +294,19 @@ function showFormStatus(message, isError) {
   formStatus.classList.toggle("message-board-form-error", isError);
 }
 
+function showMessagesMoreStatus(message, isError) {
+  if (!messagesMoreStatus) {
+    return;
+  }
+
+  messagesMoreStatus.textContent = message;
+  messagesMoreStatus.classList.toggle("message-board-more-status-error", isError);
+}
+
+function clearMessagesMoreStatus() {
+  showMessagesMoreStatus("", false);
+}
+
 function formatPostedDate(value) {
   const date = new Date(value);
   return new Intl.DateTimeFormat(undefined, {
@@ -251,6 +348,26 @@ function formatDurationMs(value) {
 
 function normalizeAttemptNumber(value) {
   return Number.isSafeInteger(value) && value >= 1 ? value : 1;
+}
+
+function normalizeTotalCount(value, minimum) {
+  return Number.isSafeInteger(value) && value >= minimum ? value : minimum;
+}
+
+function normalizeCursor(value) {
+  return typeof value === "string" && value ? value : null;
+}
+
+function getMessagesSummaryLabel(visibleCount, totalCount) {
+  if (totalCount > visibleCount) {
+    return `Showing ${visibleCount} of ${formatPostCount(totalCount)}`;
+  }
+
+  return formatPostCount(totalCount);
+}
+
+function formatPostCount(value) {
+  return value === 1 ? "1 post" : `${value} posts`;
 }
 
 function formatApiError(errorCode) {

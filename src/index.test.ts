@@ -41,6 +41,30 @@ class MemoryKVNamespace {
 	async put(key: string, value: string): Promise<void> {
 		this.store.set(key, value);
 	}
+
+	async list({
+		prefix = "",
+		cursor,
+		limit = 1000,
+	}: {
+		prefix?: string;
+		cursor?: string;
+		limit?: number;
+	} = {}) {
+		const matchingKeys = Array.from(this.store.keys())
+			.filter((key) => key.startsWith(prefix))
+			.sort();
+		const offset = cursor ? Number.parseInt(cursor, 10) : 0;
+		const normalizedOffset = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+		const pageKeys = matchingKeys.slice(normalizedOffset, normalizedOffset + limit);
+		const nextOffset = normalizedOffset + pageKeys.length;
+
+		return {
+			keys: pageKeys.map((name) => ({ name })),
+			list_complete: nextOffset >= matchingKeys.length,
+			cursor: nextOffset >= matchingKeys.length ? "" : String(nextOffset),
+		};
+	}
 }
 
 function createEnv({
@@ -437,11 +461,16 @@ test("message board accepts verified posts and returns them to public readers", 
 		assert.equal(postData.post.verification.attemptNumber, 1);
 		assert.equal(typeof postData.post.verification.verificationDurationMs, "number");
 
-		const listResponse = await handleGetMessagesRequest(env as never);
+		const listResponse = await handleGetMessagesRequest(
+			new Request("https://robot.example/im-a-robot/api/messages"),
+			env as never,
+		);
 		assert.equal(listResponse.status, 200);
 		const listData = await readJson(listResponse);
 		assert.equal(listData.success, true);
 		assert.equal(listData.messages.length, 1);
+		assert.equal(listData.totalCount, 1);
+		assert.equal(listData.nextCursor, null);
 		assert.equal(listData.messages[0].handle, "servo-99");
 		assert.equal(listData.messages[0].message, "Beep boop. Systems nominal.");
 		assert.equal(listData.messages[0].verification.source, "api");
@@ -567,6 +596,90 @@ test("message board accepts verified posts via bearer auth token", async () => {
 		assert.equal(postData.success, true);
 		assert.equal(postData.post.handle, "servo-100");
 		assert.equal(postData.post.message, "Bearer token confirmed.");
+	} finally {
+		Math.random = originalMathRandom;
+	}
+});
+
+test("message board returns the latest ten posts and paginates older ones", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv();
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+				mode: "prove_robot",
+			}),
+			env as never,
+		);
+		const startData = await readJson(startResponse);
+
+		const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+		if (!challengeSession) {
+			throw new Error("Expected challenge session to be stored");
+		}
+
+		const submitResponse = await handleChallengeSubmitRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+				sessionId: startData.sessionId,
+				answer: getCorrectAnswerFromSession(challengeSession),
+			}),
+			env as never,
+		);
+		const submitData = await readJson(submitResponse);
+		const resultToken = submitData.resultToken;
+		assert.ok(typeof resultToken === "string");
+
+		for (let index = 0; index < 12; index += 1) {
+			const postResponse = await handleCreateMessageRequest(
+				new Request("https://robot.example/im-a-robot/api/messages", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${resultToken}`,
+					},
+					body: JSON.stringify({
+						handle: `servo-${index}`,
+						message: `Message ${index}`,
+					}),
+				}),
+				env as never,
+			);
+			assert.equal(postResponse.status, 200);
+		}
+
+		const firstPageResponse = await handleGetMessagesRequest(
+			new Request("https://robot.example/im-a-robot/api/messages"),
+			env as never,
+		);
+		assert.equal(firstPageResponse.status, 200);
+		const firstPageData = await readJson(firstPageResponse);
+		assert.equal(firstPageData.success, true);
+		assert.equal(firstPageData.messages.length, 10);
+		assert.equal(firstPageData.totalCount, 12);
+		assert.equal(typeof firstPageData.nextCursor, "string");
+		assert.ok(firstPageData.nextCursor);
+
+		const secondPageResponse = await handleGetMessagesRequest(
+			new Request(
+				`https://robot.example/im-a-robot/api/messages?cursor=${encodeURIComponent(firstPageData.nextCursor)}`,
+			),
+			env as never,
+		);
+		assert.equal(secondPageResponse.status, 200);
+		const secondPageData = await readJson(secondPageResponse);
+		assert.equal(secondPageData.success, true);
+		assert.equal(secondPageData.messages.length, 2);
+		assert.equal(secondPageData.totalCount, 12);
+		assert.equal(secondPageData.nextCursor, null);
+
+		const allMessageIds = new Set(
+			[...firstPageData.messages, ...secondPageData.messages].map((message: { id: string }) => message.id),
+		);
+		assert.equal(allMessageIds.size, 12);
 	} finally {
 		Math.random = originalMathRandom;
 	}

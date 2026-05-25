@@ -304,8 +304,31 @@
       "get": {
         "tags": ["Message Board"],
         "summary": "List public message board posts",
-        "description": "Returns the current message board posts in reverse chronological order. Reading messages does not require authentication.",
+        "description": "Returns public message board posts in reverse chronological order. Results are paginated, newest first, and reading messages does not require authentication.",
         "operationId": "listMessageBoardPosts",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Number of posts to return. Defaults to 10 and is capped at 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor returned by a previous list response to load older posts.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Message board posts.",
@@ -1149,7 +1172,7 @@
       },
       "MessageBoardListResponse": {
         "type": "object",
-        "required": ["success", "messages"],
+        "required": ["success", "messages", "totalCount", "nextCursor"],
         "properties": {
           "success": {
             "type": "boolean",
@@ -1160,6 +1183,15 @@
             "items": {
               "$ref": "#/components/schemas/MessageBoardPost"
             }
+          },
+          "totalCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of posts on the board, not just in this page."
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "Opaque cursor for the next page of older posts, or null when there are no more posts."
           }
         }
       },

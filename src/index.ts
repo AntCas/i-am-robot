@@ -26,6 +26,7 @@ import type {
 	ChallengeGradingKey,
 	ChallengePrompt,
 	Env,
+	MessageBoardPostPage,
 	MessageBoardPost,
 	MessageBoardPostVerification,
 	MessageBoardPostRequestBody,
@@ -45,6 +46,12 @@ const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
 const DEFAULT_WIDGET_VERIFICATION_POLICY: VerificationPolicy = {
 	requiredChallengesToPass: challengeDefinitions.length,
 };
+const DEFAULT_MESSAGE_BOARD_PAGE_SIZE = 10;
+const MAX_MESSAGE_BOARD_PAGE_SIZE = 50;
+const MESSAGE_BOARD_META_KEY = "message-board:meta";
+const MESSAGE_BOARD_LEGACY_INDEX_KEY = "message-board:index";
+const MESSAGE_BOARD_POST_KEY_PREFIX = "message-board:post:";
+const MESSAGE_BOARD_REVERSE_TIMESTAMP_MAX = 9_999_999_999_999;
 
 const API_DOCS_PATH = `${APP_BASE_PATH}/docs`;
 
@@ -74,7 +81,7 @@ export default {
 			}
 
 			if (request.method === "GET" && isApiRequestPath(pathname, "/api/messages")) {
-				return await handleGetMessagesRequest(env);
+				return await handleGetMessagesRequest(request, env);
 			}
 
 			if (request.method === "POST" && isApiRequestPath(pathname, "/api/messages")) {
@@ -401,11 +408,18 @@ export async function handleVerifyRequest(request: Request, env: Env): Promise<R
 	});
 }
 
-export async function handleGetMessagesRequest(env: Env): Promise<Response> {
-	const messages = await loadMessageBoardPosts(env);
+export async function handleGetMessagesRequest(request: Request, env: Env): Promise<Response> {
+	const requestUrl = new URL(request.url);
+	const page = await loadMessageBoardPostPage(env, {
+		limit: getMessageBoardPageSize(requestUrl.searchParams.get("limit")),
+		cursor: normalizeMessageBoardCursor(requestUrl.searchParams.get("cursor")),
+	});
+
 	return createJsonResponse({
 		success: true,
-		messages,
+		messages: page.messages,
+		totalCount: page.totalCount,
+		nextCursor: page.nextCursor,
 	});
 }
 
@@ -548,8 +562,68 @@ export async function saveVerificationSession(env: Env, session: VerificationSes
 	});
 }
 
-export async function loadMessageBoardPosts(env: Env): Promise<MessageBoardPost[]> {
-	const storedMessageIds = await env.SESSIONS.get("message-board:index", "json");
+export async function loadMessageBoardPostPage(
+	env: Env,
+	args: {
+		limit?: number;
+		cursor?: string;
+	},
+): Promise<MessageBoardPostPage> {
+	const meta = await ensureMessageBoardMeta(env);
+	const listedPosts = await env.SESSIONS.list({
+		prefix: MESSAGE_BOARD_POST_KEY_PREFIX,
+		limit: getMessageBoardPageSize(args.limit),
+		cursor: args.cursor,
+	});
+	const storedMessages = await Promise.all(
+		listedPosts.keys.map(async (key) => {
+			const message = await env.SESSIONS.get(key.name, "json");
+			return (message as MessageBoardPost | null) ?? null;
+		}),
+	);
+
+	return {
+		messages: storedMessages.filter((message): message is MessageBoardPost => Boolean(message)),
+		totalCount: meta.totalCount,
+		nextCursor: listedPosts.list_complete || !listedPosts.cursor ? null : listedPosts.cursor,
+	};
+}
+
+export async function saveMessageBoardPost(env: Env, post: MessageBoardPost): Promise<void> {
+	const meta = await ensureMessageBoardMeta(env);
+	await env.SESSIONS.put(createMessageBoardPostStorageKey(post), JSON.stringify(post));
+	await saveMessageBoardMeta(env, { totalCount: meta.totalCount + 1 });
+}
+
+async function ensureMessageBoardMeta(env: Env): Promise<{ totalCount: number }> {
+	const storedMeta = await env.SESSIONS.get(MESSAGE_BOARD_META_KEY, "json");
+	const normalizedMeta = normalizeMessageBoardMeta(storedMeta);
+	if (normalizedMeta) {
+		return normalizedMeta;
+	}
+
+	const legacyMessages = await loadLegacyMessageBoardPosts(env);
+	if (legacyMessages.length > 0) {
+		await Promise.all(
+			legacyMessages.map((message) =>
+				env.SESSIONS.put(createMessageBoardPostStorageKey(message), JSON.stringify(message)),
+			),
+		);
+
+		const migratedMeta = { totalCount: legacyMessages.length };
+		await saveMessageBoardMeta(env, migratedMeta);
+		return migratedMeta;
+	}
+
+	const initializedMeta = {
+		totalCount: await countStoredMessageBoardPosts(env),
+	};
+	await saveMessageBoardMeta(env, initializedMeta);
+	return initializedMeta;
+}
+
+async function loadLegacyMessageBoardPosts(env: Env): Promise<MessageBoardPost[]> {
+	const storedMessageIds = await env.SESSIONS.get(MESSAGE_BOARD_LEGACY_INDEX_KEY, "json");
 	const messageIds = Array.isArray(storedMessageIds) ? storedMessageIds : [];
 	const storedMessages = await Promise.all(
 		messageIds.map(async (messageId) => {
@@ -561,14 +635,77 @@ export async function loadMessageBoardPosts(env: Env): Promise<MessageBoardPost[
 	return storedMessages.filter((message): message is MessageBoardPost => Boolean(message));
 }
 
-export async function saveMessageBoardPost(env: Env, post: MessageBoardPost): Promise<void> {
-	const existingPosts = await loadMessageBoardPosts(env);
-	const nextPosts = [post, ...existingPosts];
-	await env.SESSIONS.put(`message-board:message:${post.id}`, JSON.stringify(post));
-	await env.SESSIONS.put(
-		"message-board:index",
-		JSON.stringify(nextPosts.map((message) => message.id)),
-	);
+async function countStoredMessageBoardPosts(env: Env): Promise<number> {
+	let totalCount = 0;
+	let cursor: string | undefined;
+
+	do {
+		const listedPosts = await env.SESSIONS.list({
+			prefix: MESSAGE_BOARD_POST_KEY_PREFIX,
+			cursor,
+			limit: MAX_MESSAGE_BOARD_PAGE_SIZE,
+		});
+		totalCount += listedPosts.keys.length;
+		cursor = listedPosts.list_complete || !listedPosts.cursor ? undefined : listedPosts.cursor;
+	} while (cursor);
+
+	return totalCount;
+}
+
+async function saveMessageBoardMeta(env: Env, meta: { totalCount: number }): Promise<void> {
+	await env.SESSIONS.put(MESSAGE_BOARD_META_KEY, JSON.stringify(meta));
+}
+
+function normalizeMessageBoardMeta(value: unknown): { totalCount: number } | null {
+	if (!value || typeof value !== "object") {
+		return null;
+	}
+
+	const totalCount = Reflect.get(value, "totalCount");
+	if (!Number.isSafeInteger(totalCount) || totalCount < 0) {
+		return null;
+	}
+
+	return { totalCount };
+}
+
+function getMessageBoardPageSize(value: string | number | null | undefined): number {
+	if (typeof value === "number") {
+		if (Number.isSafeInteger(value) && value >= 1) {
+			return Math.min(value, MAX_MESSAGE_BOARD_PAGE_SIZE);
+		}
+
+		return DEFAULT_MESSAGE_BOARD_PAGE_SIZE;
+	}
+
+	if (!value) {
+		return DEFAULT_MESSAGE_BOARD_PAGE_SIZE;
+	}
+
+	const parsedValue = Number.parseInt(value, 10);
+	if (!Number.isSafeInteger(parsedValue) || parsedValue < 1) {
+		return DEFAULT_MESSAGE_BOARD_PAGE_SIZE;
+	}
+
+	return Math.min(parsedValue, MAX_MESSAGE_BOARD_PAGE_SIZE);
+}
+
+function normalizeMessageBoardCursor(value: string | null): string | undefined {
+	const normalizedValue = value?.trim();
+	return normalizedValue ? normalizedValue : undefined;
+}
+
+function createMessageBoardPostStorageKey(post: MessageBoardPost): string {
+	const postedAtMilliseconds = Date.parse(post.postedAt);
+	const normalizedPostedAtMilliseconds =
+		Number.isFinite(postedAtMilliseconds) && postedAtMilliseconds >= 0
+			? postedAtMilliseconds
+			: Date.now();
+	const reverseChronologicalTimestamp = String(
+		MESSAGE_BOARD_REVERSE_TIMESTAMP_MAX - normalizedPostedAtMilliseconds,
+	).padStart(String(MESSAGE_BOARD_REVERSE_TIMESTAMP_MAX).length, "0");
+
+	return `${MESSAGE_BOARD_POST_KEY_PREFIX}${reverseChronologicalTimestamp}:${post.id}`;
 }
 
 export function getSigningSecret(env: Env): string | null {
