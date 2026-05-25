@@ -135,7 +135,8 @@ test("getChallengeMarkup renders a chess board and FEN for chess prompts", () =>
 	});
 
 	assert.match(markup, /chess-board/);
-	assert.match(markup, /position="6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1 w - - 0 1"/);
+	assert.match(markup, /position="6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1"/);
+	assert.match(markup, /FEN: <code>6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1 w - - 0 1<\/code>/);
 	assert.match(markup, /FEN:/);
 });
 

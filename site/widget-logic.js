@@ -149,6 +149,8 @@ export function getChallengeMarkup(prompt) {
   }
 
   if (prompt.kind === "chess_puzzle") {
+    const boardPosition = getChessBoardPosition(prompt.fen);
+
     return `
       <div class="challenge-block">
         <p>${escapeHtml(prompt.instruction)}</p>
@@ -156,7 +158,7 @@ export function getChallengeMarkup(prompt) {
         <div class="chess-puzzle-layout">
           <chess-board
             class="challenge-chess-board"
-            position="${escapeHtml(prompt.fen)}"
+            position="${escapeHtml(boardPosition)}"
             orientation="${escapeHtml(prompt.orientation)}"
           ></chess-board>
           <div class="chess-puzzle-copy">
@@ -302,6 +304,10 @@ export function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function getChessBoardPosition(fen) {
+  return String(fen).trim().split(/\s+/, 1)[0] ?? "";
 }
 
 function normalizeAppBasePath(value) {

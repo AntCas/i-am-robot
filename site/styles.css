@@ -445,15 +445,41 @@ body {
   --widget-progress-segments: 1;
   display: grid;
   grid-template-columns: repeat(var(--widget-progress-segments), minmax(0, 1fr));
-  gap: 3px;
+  gap: 0;
   height: 100%;
 }
 
 .widget-progress-segments span {
+  position: relative;
   min-width: 0;
-  border-radius: 999px;
+  border-radius: 0;
   background: #e3e7ee;
   transition: background-color 180ms ease;
+}
+
+.widget-progress-segments span:first-child {
+  border-radius: 999px 0 0 999px;
+}
+
+.widget-progress-segments span:last-child {
+  border-radius: 0 999px 999px 0;
+}
+
+.widget-progress-segments span:only-child {
+  border-radius: 999px;
+}
+
+.widget-progress-segments span:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -0.5px;
+  z-index: 1;
+  width: 1px;
+  height: 100%;
+  background: #f9f9f9;
+  transform: skewX(-18deg);
+  transform-origin: center;
 }
 
 .widget-progress-segments span.is-filled {
