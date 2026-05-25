@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getAnswerForPrompt, getChallengeMarkup } from "./widget-logic.js";
+import {
+	getAnswerForPrompt,
+	getChallengeMarkup,
+	getWidgetMarkup,
+	resolveWidgetConfig,
+} from "./widget-logic.js";
 
 test("getAnswerForPrompt returns a typed integer answer for short_text prompts", () => {
 	const prompt = {
@@ -130,4 +135,42 @@ test("getChallengeMarkup renders a chess board and FEN for chess prompts", () =>
 	assert.match(markup, /chess-board/);
 	assert.match(markup, /position="6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1 w - - 0 1"/);
 	assert.match(markup, /FEN:/);
+});
+
+test("getWidgetMarkup includes a low-profile api docs hint", () => {
+	const markup = getWidgetMarkup({
+		appBasePath: "/im-a-robot",
+		siteKey: "site_demo_123",
+		docsPath: "/im-a-robot/docs/",
+		privacyPath: "/im-a-robot/privacy",
+		termsPath: "/im-a-robot/terms",
+	});
+
+	assert.match(markup, /Robot operators:/);
+	assert.match(markup, /href="\/im-a-robot\/docs\/"/);
+	assert.match(markup, /direct verification without driving the browser widget/);
+});
+
+test("resolveWidgetConfig defaults docsPath from app base path", () => {
+	const element = {
+		getAttribute(name: string) {
+			const attrs: Record<string, string | null> = {
+				"app-base-path": "/im-a-robot",
+				"site-key": "site_demo_123",
+				"docs-path": null,
+				"privacy-path": null,
+				"terms-path": null,
+			};
+
+			return attrs[name] ?? null;
+		},
+	};
+
+	assert.deepEqual(resolveWidgetConfig(element, "/im-a-robot/message-board"), {
+		appBasePath: "/im-a-robot",
+		siteKey: "site_demo_123",
+		docsPath: "/im-a-robot/docs/",
+		privacyPath: "/im-a-robot/privacy",
+		termsPath: "/im-a-robot/terms",
+	});
 });
