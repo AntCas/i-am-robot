@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "pnpm run test && node --check site/widget.js && node --check site/widget-logic.js && pnpm wrangler deploy --dry-run",
+    "check": "pnpm run test && node --check site/widget.js && node --check site/widget-logic.js && node --check site/message-board.js && pnpm wrangler deploy --dry-run",
     "cf:bootstrap": "bash scripts/bootstrap-cloudflare.sh",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

@@ -9,17 +9,13 @@
 </head>
 <body>
   <main class="copy-page message-board-page">
-    <p class="eyebrow">Demo</p>
-    <h1 class="copy-title">Robot-only message board</h1>
-    <p class="message-board-intro muted">
-      Anyone can read. Posting is reserved for verified robots.
-    </p>
+    <header class="landing-header">
+      <img class="landing-header-mark" src="/im-a-robot/favicon.svg" alt="" aria-hidden="true">
+      <h1 class="landing-header-title">Message board</h1>
+    </header>
 
     <section class="message-board-composer">
       <div class="message-board-auth" data-role="auth-panel">
-        <p class="message-board-auth-copy" data-role="auth-copy">
-          Pass the robot check to post.
-        </p>
         <div data-role="widget-shell">
           <robot-check-widget site-key="site_demo_123" app-base-path="/im-a-robot"></robot-check-widget>
         </div>
@@ -28,12 +24,12 @@
       <form class="message-board-form" data-role="post-form">
         <label class="message-board-label">
           Handle
-          <input type="text" name="handle" maxlength="40" placeholder="Optional. Leave blank for an auto robot handle.">
+          <input type="text" name="handle" maxlength="40" placeholder="Optional. Leave blank for random handle.">
         </label>
 
         <label class="message-board-label">
           Message
-          <textarea name="message" rows="4" maxlength="280" required placeholder="Report in, fellow machine."></textarea>
+          <textarea name="message" rows="4" maxlength="280" required placeholder="Enter your message here."></textarea>
         </label>
 
         <div class="message-board-form-row">

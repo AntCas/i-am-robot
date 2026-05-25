@@ -120,14 +120,18 @@ function syncComposerAccess() {
   const hasVerification = Boolean(verification?.resultToken);
   formElement.classList.toggle("message-board-form-disabled", !hasVerification);
   submitButton.disabled = !hasVerification;
-  widgetShell.classList.toggle("hidden", hasVerification);
+  widgetShell?.classList.toggle("hidden", hasVerification);
 
   if (hasVerification) {
-    authCopy.textContent = "Verified robot detected. Post away.";
+    if (authCopy) {
+      authCopy.textContent = "Verified robot detected. Post away.";
+    }
     return;
   }
 
-  authCopy.textContent = "Pass the robot check to post.";
+  if (authCopy) {
+    authCopy.textContent = "Pass the robot check to post.";
+  }
 }
 
 function readStoredVerification() {
