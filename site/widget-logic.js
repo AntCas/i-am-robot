@@ -11,6 +11,7 @@ export function createInitialWidgetState(config) {
     verificationSessionId: null,
     challengePrompt: null,
     deadlineAt: null,
+    countdownStartRemainingMs: null,
     timerId: null,
     successfulChallenges: 0,
     requiredChallengesToPass: 1,
@@ -296,6 +297,21 @@ export function formatRemainingSeconds(deadlineAt, currentTimeMs) {
     remainingMs,
     label: `${remainingSeconds.toFixed(1)}s left`,
   };
+}
+
+export function getCountdownPressureProgress(remainingMs, countdownStartRemainingMs) {
+  if (!Number.isFinite(remainingMs)) {
+    return 0;
+  }
+
+  if (!Number.isFinite(countdownStartRemainingMs) || countdownStartRemainingMs <= 0) {
+    return remainingMs <= 0 ? 1 : 0;
+  }
+
+  const normalizedRemaining = Math.min(1, Math.max(0, remainingMs / countdownStartRemainingMs));
+  const logCurveStrength = 24;
+
+  return 1 - Math.log1p(logCurveStrength * normalizedRemaining) / Math.log1p(logCurveStrength);
 }
 
 export function escapeHtml(value) {

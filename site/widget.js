@@ -3,6 +3,7 @@ import {
   createStartChallengeRequestBody,
   createSubmitChallengeRequestBody,
   formatRemainingSeconds,
+  getCountdownPressureProgress,
   getAnswerForPrompt,
   getChallengeMarkup,
   getFailureMessage,
@@ -18,6 +19,10 @@ import {
 
 const chessBoardComponentReady = loadChessBoardComponent();
 const VERIFICATION_STORAGE_KEY = "robot-check-verification";
+const PAGE_COUNTDOWN_DARKNESS_VAR = "--page-countdown-darkness";
+const PAGE_COUNTDOWN_VIGNETTE_VAR = "--page-countdown-vignette";
+const MAX_PAGE_COUNTDOWN_DARKNESS = 0.72;
+const MAX_PAGE_COUNTDOWN_VIGNETTE = 0.78;
 
 class RobotCheckWidget extends HTMLElement {
   connectedCallback() {
@@ -82,6 +87,7 @@ class RobotCheckWidget extends HTMLElement {
   }
 
   prepareInterfaceForVerification() {
+    resetPageCountdownEffect();
     this.titleElement.textContent = "Prove it";
     this.subtitleElement.textContent = "Timed challenge verification";
     this.expandedElement.classList.remove("hidden");
@@ -319,31 +325,68 @@ class RobotCheckWidget extends HTMLElement {
 
   startCountdownTimer() {
     this.clearCountdownTimer();
+    if (!this.state.deadlineAt) {
+      return;
+    }
+
+    this.state.countdownStartRemainingMs = Math.max(
+      0,
+      new Date(this.state.deadlineAt).getTime() - Date.now(),
+    );
     this.updateCountdownTimer();
-    this.state.timerId = window.setInterval(() => this.updateCountdownTimer(), 200);
+    this.scheduleCountdownTimerFrame();
   }
 
   updateCountdownTimer() {
     if (!this.state.deadlineAt) {
       this.timerElement.textContent = "";
+      resetPageCountdownEffect();
       return;
     }
 
     const countdown = formatRemainingSeconds(this.state.deadlineAt, Date.now());
-    this.timerElement.textContent = countdown.label;
+    if (this.timerElement.textContent !== countdown.label) {
+      this.timerElement.textContent = countdown.label;
+    }
+    this.syncCountdownPageEffect(countdown.remainingMs);
 
     if (countdown.remainingMs <= 0) {
-      this.clearCountdownTimer();
+      this.clearCountdownTimer({ resetPageEffect: false });
     }
   }
 
-  clearCountdownTimer() {
-    if (!this.state.timerId) {
+  scheduleCountdownTimerFrame() {
+    if (!this.state.deadlineAt || this.state.timerId) {
       return;
     }
 
-    window.clearInterval(this.state.timerId);
-    this.state.timerId = null;
+    this.state.timerId = window.requestAnimationFrame(() => {
+      this.state.timerId = null;
+      this.updateCountdownTimer();
+
+      if (this.state.deadlineAt && this.state.countdownStartRemainingMs !== null) {
+        this.scheduleCountdownTimerFrame();
+      }
+    });
+  }
+
+  syncCountdownPageEffect(remainingMs) {
+    setPageCountdownEffect(
+      getCountdownPressureProgress(remainingMs, this.state.countdownStartRemainingMs),
+    );
+  }
+
+  clearCountdownTimer({ resetPageEffect = true } = {}) {
+    if (this.state.timerId) {
+      window.cancelAnimationFrame(this.state.timerId);
+      this.state.timerId = null;
+    }
+
+    this.state.countdownStartRemainingMs = null;
+
+    if (resetPageEffect) {
+      resetPageCountdownEffect();
+    }
   }
 
   getChallengeStartUrl() {
@@ -421,6 +464,31 @@ function persistVerificationToken(resultToken, expiresAt, attemptNumber) {
 
 function clearStoredVerification() {
   window.localStorage.removeItem(VERIFICATION_STORAGE_KEY);
+}
+
+function setPageCountdownEffect(progress) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const clampedProgress = Math.min(1, Math.max(0, progress));
+  document.documentElement.style.setProperty(
+    PAGE_COUNTDOWN_DARKNESS_VAR,
+    (clampedProgress * MAX_PAGE_COUNTDOWN_DARKNESS).toFixed(3),
+  );
+  document.documentElement.style.setProperty(
+    PAGE_COUNTDOWN_VIGNETTE_VAR,
+    (clampedProgress * MAX_PAGE_COUNTDOWN_VIGNETTE).toFixed(3),
+  );
+}
+
+function resetPageCountdownEffect() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.style.removeProperty(PAGE_COUNTDOWN_DARKNESS_VAR);
+  document.documentElement.style.removeProperty(PAGE_COUNTDOWN_VIGNETTE_VAR);
 }
 
 function isValidVerificationProgress(verification) {

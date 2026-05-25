@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
 	createStartChallengeRequestBody,
+	getCountdownPressureProgress,
 	getAnswerForPrompt,
 	getChallengeMarkup,
 	getProgressSegmentStates,
@@ -182,6 +183,30 @@ test("getProgressSegmentStates matches required challenge count", () => {
 	assert.deepEqual(getProgressSegmentStates(0, 3), [false, false, false]);
 	assert.deepEqual(getProgressSegmentStates(2, 3), [true, true, false]);
 	assert.deepEqual(getProgressSegmentStates(1, 1), [true]);
+});
+
+test("getCountdownPressureProgress follows a subtle logarithmic ramp from the start", () => {
+	const earlyProgress = getCountdownPressureProgress(9000, 10000);
+	const midwayProgress = getCountdownPressureProgress(5000, 10000);
+	const lateProgress = getCountdownPressureProgress(500, 10000);
+
+	assert.equal(getCountdownPressureProgress(12000, 10000), 0);
+	assert.ok(earlyProgress > 0);
+	assert.ok(earlyProgress < 0.05);
+	assert.ok(midwayProgress > earlyProgress);
+	assert.ok(midwayProgress < 0.25);
+	assert.ok(lateProgress > midwayProgress);
+	assert.ok(lateProgress < 1);
+	assert.equal(getCountdownPressureProgress(0, 10000), 1);
+});
+
+test("getCountdownPressureProgress remains smooth for short timers", () => {
+	const earlyProgress = getCountdownPressureProgress(900, 1000);
+	const lateProgress = getCountdownPressureProgress(250, 1000);
+
+	assert.ok(earlyProgress > 0);
+	assert.ok(earlyProgress < 0.05);
+	assert.ok(lateProgress > earlyProgress);
 });
 
 test("createStartChallengeRequestBody identifies widget verification mode and attempt", () => {
