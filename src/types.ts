@@ -9,6 +9,7 @@ export interface Env {
 
 export type Verdict = "robot" | "human" | "failed";
 export type SessionStatus = "issued" | "completed" | "expired";
+export type VerificationMode = "prove_robot" | "widget";
 export type ChallengeType = "timed_math" | "randomness_audit" | "code_error" | "chess_puzzle" | "hash_value";
 export type ChallengeAnswerFormat = "integer" | "choice_id" | "san" | "hex_digest";
 
@@ -17,6 +18,7 @@ export interface SiteConfig {
 	secret: string;
 	allowedHostnames: string[];
 	verificationPolicy?: VerificationPolicy;
+	widgetVerificationPolicy?: VerificationPolicy;
 }
 
 export interface VerificationPolicy {
@@ -164,7 +166,7 @@ export interface ChallengeSession {
 	verificationSessionId: string;
 	siteKey: string;
 	hostname: string;
-	mode: "prove_robot";
+	mode: VerificationMode;
 	challengeType: ChallengeType;
 	issuedAt: string;
 	deadlineAt: string;
@@ -183,7 +185,7 @@ export interface VerificationSession {
 	id: string;
 	siteKey: string;
 	hostname: string;
-	mode: "prove_robot";
+	mode: VerificationMode;
 	issuedAt: string;
 	completedAt: string | null;
 	status: VerificationSessionStatus;

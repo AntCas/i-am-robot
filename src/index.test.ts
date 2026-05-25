@@ -12,6 +12,7 @@ import {
 } from "./index.ts";
 import { chessPuzzleChallenge } from "./challenges/_chess-puzzle.ts";
 import { hashValueChallenge } from "./challenges/_hash-value.ts";
+import { challengeDefinitions } from "./challenges/index.ts";
 
 class MemoryKVNamespace {
 	store: Map<string, string>;
@@ -42,7 +43,10 @@ class MemoryKVNamespace {
 	}
 }
 
-function createEnv({ requiredChallengesToPass }: { requiredChallengesToPass?: number } = {}) {
+function createEnv({
+	requiredChallengesToPass,
+	widgetRequiredChallengesToPass,
+}: { requiredChallengesToPass?: number; widgetRequiredChallengesToPass?: number } = {}) {
 	const siteConfig: Record<string, unknown> = {
 		siteKey: "site_demo_123",
 		secret: "secret_demo_abc",
@@ -51,6 +55,10 @@ function createEnv({ requiredChallengesToPass }: { requiredChallengesToPass?: nu
 
 	if (requiredChallengesToPass !== undefined) {
 		siteConfig.verificationPolicy = { requiredChallengesToPass };
+	}
+
+	if (widgetRequiredChallengesToPass !== undefined) {
+		siteConfig.widgetVerificationPolicy = { requiredChallengesToPass: widgetRequiredChallengesToPass };
 	}
 
 	return {
@@ -210,6 +218,71 @@ test("verification uses the server-configured multi-challenge policy before issu
 	} finally {
 		Math.random = originalMathRandom;
 	}
+});
+
+test("widget verification defaults to one challenge per challenge type", async () => {
+	const env = createEnv();
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	assert.equal(startData.verification.requiredChallengesToPass, challengeDefinitions.length);
+	assert.equal(startData.verification.remainingChallenges, challengeDefinitions.length);
+});
+
+test("api verification defaults to one challenge", async () => {
+	const env = createEnv();
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	assert.equal(startData.verification.requiredChallengesToPass, 1);
+	assert.equal(startData.verification.remainingChallenges, 1);
+});
+
+test("api policy does not override the widget challenge count", async () => {
+	const env = createEnv({ requiredChallengesToPass: 3 });
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	assert.equal(startData.verification.requiredChallengesToPass, challengeDefinitions.length);
+});
+
+test("widget-specific policy overrides the widget default", async () => {
+	const env = createEnv({ widgetRequiredChallengesToPass: 3 });
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	assert.equal(startData.verification.requiredChallengesToPass, 3);
 });
 
 test("verification can complete after one server-configured challenge", async () => {

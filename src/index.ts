@@ -2,6 +2,7 @@ import {
 	APP_BASE_PATH,
 	RESULT_TOKEN_TTL_SECONDS,
 	SESSION_TTL_SECONDS,
+	challengeDefinitions,
 	createResultTokenPayload,
 	getChallengeDefinitionByType,
 	getRandomChallengeDefinition,
@@ -33,11 +34,15 @@ import type {
 	SubmitRequestBody,
 	VerifyRequestBody,
 	VerificationPolicy,
+	VerificationMode,
 	VerificationSession,
 } from "./types.ts";
 
 const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
 	requiredChallengesToPass: 1,
+};
+const DEFAULT_WIDGET_VERIFICATION_POLICY: VerificationPolicy = {
+	requiredChallengesToPass: challengeDefinitions.length,
 };
 
 const API_DOCS_PATH = `${APP_BASE_PATH}/docs`;
@@ -94,7 +99,7 @@ export default {
 export async function handleChallengeStartRequest(request: Request, env: Env): Promise<Response> {
 	const requestBody = (await request.json()) as StartRequestBody;
 	const siteKey = requestBody.siteKey?.trim();
-	const verificationMode = requestBody.mode?.trim() ?? "prove_robot";
+	const requestedVerificationMode = requestBody.mode?.trim() ?? "prove_robot";
 	const verificationSessionId = requestBody.verificationSessionId?.trim();
 	const requestUrl = new URL(request.url);
 	const hostname = normalizeHostnameInput(requestBody.hostname, request.headers.get("Origin"), requestUrl.host);
@@ -103,9 +108,10 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		return createJsonErrorResponse("invalid_site_key", 400);
 	}
 
-	if (verificationMode !== "prove_robot") {
+	if (!isVerificationMode(requestedVerificationMode)) {
 		return createJsonErrorResponse("invalid_mode", 400);
 	}
+	const verificationMode = requestedVerificationMode;
 
 	if (!hostname) {
 		return createJsonErrorResponse("invalid_hostname", 400);
@@ -132,6 +138,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 				verificationSessionId: getRandomId("vfy"),
 				siteKey,
 				hostname,
+				mode: verificationMode,
 				issuedAt: new Date().toISOString(),
 				requiredChallengesToPass: verificationPolicy.requiredChallengesToPass,
 			});
@@ -163,6 +170,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		verificationSessionId: verificationSession.id,
 		siteKey,
 		hostname,
+		mode: verificationMode,
 		challengeType: challengeDefinition.type,
 		issuedAt,
 		deadlineAt,
@@ -569,6 +577,7 @@ function createPendingChallengeSession(args: {
 	verificationSessionId: string;
 	siteKey: string;
 	hostname: string;
+	mode: VerificationMode;
 	challengeType: ChallengeSession["challengeType"];
 	issuedAt: string;
 	deadlineAt: string;
@@ -580,7 +589,7 @@ function createPendingChallengeSession(args: {
 		verificationSessionId: args.verificationSessionId,
 		siteKey: args.siteKey,
 		hostname: args.hostname,
-		mode: "prove_robot",
+		mode: args.mode,
 		challengeType: args.challengeType,
 		issuedAt: args.issuedAt,
 		deadlineAt: args.deadlineAt,
@@ -614,6 +623,7 @@ function createActiveVerificationSession(args: {
 	verificationSessionId: string;
 	siteKey: string;
 	hostname: string;
+	mode: VerificationMode;
 	issuedAt: string;
 	requiredChallengesToPass: number;
 }): VerificationSession {
@@ -621,7 +631,7 @@ function createActiveVerificationSession(args: {
 		id: args.verificationSessionId,
 		siteKey: args.siteKey,
 		hostname: args.hostname,
-		mode: "prove_robot",
+		mode: args.mode,
 		issuedAt: args.issuedAt,
 		completedAt: null,
 		status: "active",
@@ -672,13 +682,28 @@ function createVerificationProgressPayload(session: VerificationSession): {
 function resolveVerificationPolicy(args: {
 	siteConfig: SiteConfig;
 	hostname: string;
-	mode: "prove_robot";
+	mode: VerificationMode;
 }): VerificationPolicy {
+	if (args.mode === "widget") {
+		return (
+			args.siteConfig.widgetVerificationPolicy ??
+			getDefaultVerificationPolicy(args.mode)
+		);
+	}
+
 	return {
 		requiredChallengesToPass:
 			args.siteConfig.verificationPolicy?.requiredChallengesToPass ??
-			DEFAULT_VERIFICATION_POLICY.requiredChallengesToPass,
+			getDefaultVerificationPolicy(args.mode).requiredChallengesToPass,
 	};
+}
+
+function isVerificationMode(value: string): value is VerificationMode {
+	return value === "prove_robot" || value === "widget";
+}
+
+function getDefaultVerificationPolicy(mode: VerificationMode): VerificationPolicy {
+	return mode === "widget" ? DEFAULT_WIDGET_VERIFICATION_POLICY : DEFAULT_VERIFICATION_POLICY;
 }
 
 function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfig: SiteConfig | null): SiteConfig {
@@ -690,6 +715,7 @@ function mergeMatchingDefaultSiteConfig(siteConfig: SiteConfig, defaultSiteConfi
 		...siteConfig,
 		allowedHostnames: Array.from(new Set([...siteConfig.allowedHostnames, ...defaultSiteConfig.allowedHostnames])),
 		verificationPolicy: siteConfig.verificationPolicy ?? defaultSiteConfig.verificationPolicy,
+		widgetVerificationPolicy: siteConfig.widgetVerificationPolicy ?? defaultSiteConfig.widgetVerificationPolicy,
 	};
 }
 
@@ -698,7 +724,8 @@ function isValidSiteConfig(siteConfig: SiteConfig): boolean {
 		siteConfig.siteKey &&
 			siteConfig.secret &&
 			Array.isArray(siteConfig.allowedHostnames) &&
-			isValidVerificationPolicy(siteConfig.verificationPolicy),
+			isValidVerificationPolicy(siteConfig.verificationPolicy) &&
+			isValidVerificationPolicy(siteConfig.widgetVerificationPolicy),
 	);
 }
 

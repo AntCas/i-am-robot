@@ -430,7 +430,8 @@
     "schemas": {
       "Mode": {
         "type": "string",
-        "enum": ["prove_robot"]
+        "enum": ["prove_robot", "widget"],
+        "description": "`prove_robot` is the public API mode and defaults to one challenge. `widget` is used by the browser widget and defaults to one challenge per available challenge type."
       },
       "ChallengeType": {
         "type": "string",

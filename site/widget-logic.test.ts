@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+	createStartChallengeRequestBody,
 	getAnswerForPrompt,
 	getChallengeMarkup,
+	getProgressSegmentStates,
 	getWidgetMarkup,
 	resolveWidgetConfig,
 } from "./widget-logic.js";
@@ -172,5 +174,20 @@ test("resolveWidgetConfig defaults docsPath from app base path", () => {
 		docsPath: "/im-a-robot/docs/",
 		privacyPath: "/im-a-robot/privacy",
 		termsPath: "/im-a-robot/terms",
+	});
+});
+
+test("getProgressSegmentStates matches required challenge count", () => {
+	assert.deepEqual(getProgressSegmentStates(0, 3), [false, false, false]);
+	assert.deepEqual(getProgressSegmentStates(2, 3), [true, true, false]);
+	assert.deepEqual(getProgressSegmentStates(1, 1), [true]);
+});
+
+test("createStartChallengeRequestBody identifies widget verification mode", () => {
+	assert.deepEqual(createStartChallengeRequestBody("site_demo_123", "castrio.me", null), {
+		siteKey: "site_demo_123",
+		hostname: "castrio.me",
+		mode: "widget",
+		verificationSessionId: null,
 	});
 });

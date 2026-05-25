@@ -8,6 +8,7 @@ import {
   getFailureMessage,
   getProgressLabel,
   getProgressPercentage,
+  getProgressSegmentStates,
   getRemainingAttemptsMessage,
   getVisualStateName,
   resolveWidgetConfig,
@@ -51,6 +52,7 @@ class RobotCheckWidget extends HTMLElement {
     this.challengeTypeElement = this.querySelector('[data-role="challenge-type"]');
     this.timerElement = this.querySelector('[data-role="timer"]');
     this.progressBarElement = this.querySelector('[data-role="progress-bar"]');
+    this.progressSegmentsElement = this.querySelector('[data-role="progress-segments"]');
   }
 
   registerEventHandlers() {
@@ -218,6 +220,7 @@ class RobotCheckWidget extends HTMLElement {
         this.state.successfulChallenges,
         this.state.requiredChallengesToPass,
       );
+      this.updateProgressBar();
       this.metaElement.classList.remove("hidden");
       this.verifyButton.disabled = false;
       this.startCountdownTimer();
@@ -284,6 +287,22 @@ class RobotCheckWidget extends HTMLElement {
       this.state.successfulChallenges,
       this.state.requiredChallengesToPass,
     )}%`;
+    this.renderProgressSegments();
+  }
+
+  renderProgressSegments() {
+    if (!this.progressSegmentsElement) {
+      return;
+    }
+
+    const segments = getProgressSegmentStates(
+      this.state.successfulChallenges,
+      this.state.requiredChallengesToPass,
+    );
+    this.progressSegmentsElement.style.setProperty("--widget-progress-segments", String(segments.length));
+    this.progressSegmentsElement.innerHTML = segments
+      .map((isFilled) => `<span class="${isFilled ? "is-filled" : ""}"></span>`)
+      .join("");
   }
 
   applyVisualState() {

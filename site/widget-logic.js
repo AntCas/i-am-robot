@@ -79,6 +79,7 @@ export function getWidgetMarkup(config) {
       <section class="widget-expanded hidden" data-role="widget-expanded">
         <div class="widget-progress" data-role="progress">
           <div class="widget-progress-bar" data-role="progress-bar"></div>
+          <div class="widget-progress-segments" data-role="progress-segments" aria-hidden="true"></div>
         </div>
 
         <div class="widget-meta hidden" data-role="widget-meta">
@@ -115,7 +116,7 @@ export function createStartChallengeRequestBody(siteKey, hostname, verificationS
   return {
     siteKey,
     hostname,
-    mode: "prove_robot",
+    mode: "widget",
     verificationSessionId,
   };
 }
@@ -246,6 +247,11 @@ export function getProgressPercentage(successfulChallenges, requiredChallengesTo
   }
 
   return (successfulChallenges / requiredChallengesToPass) * 100;
+}
+
+export function getProgressSegmentStates(successfulChallenges, requiredChallengesToPass) {
+  const segmentCount = Math.max(1, requiredChallengesToPass);
+  return Array.from({ length: segmentCount }, (_, index) => index < successfulChallenges);
 }
 
 export function getProgressLabel(successfulChallenges, requiredChallengesToPass) {

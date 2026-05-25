@@ -107,10 +107,7 @@ fi
 SITE_CONFIG='{
   "siteKey": "site_demo_123",
   "secret": "secret_demo_abc",
-  "allowedHostnames": ["castrio.me"],
-  "verificationPolicy": {
-    "requiredChallengesToPass": 1
-  }
+  "allowedHostnames": ["castrio.me"]
 }'
 
 pnpm wrangler kv key put --remote --binding SITES "site:site_demo_123" "$SITE_CONFIG"

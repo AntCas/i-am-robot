@@ -434,15 +434,30 @@ body {
 .widget-progress {
   height: 6px;
   border-radius: 999px;
-  background: #e3e7ee;
   overflow: hidden;
 }
 
 .widget-progress-bar {
+  display: none;
+}
+
+.widget-progress-segments {
+  --widget-progress-segments: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--widget-progress-segments), minmax(0, 1fr));
+  gap: 3px;
   height: 100%;
-  width: 0;
+}
+
+.widget-progress-segments span {
+  min-width: 0;
+  border-radius: 999px;
+  background: #e3e7ee;
+  transition: background-color 180ms ease;
+}
+
+.widget-progress-segments span.is-filled {
   background: linear-gradient(90deg, #5ca7ff 0%, #1a73e8 100%);
-  transition: width 180ms ease;
 }
 
 .widget-meta {
