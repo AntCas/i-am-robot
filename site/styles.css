@@ -58,6 +58,26 @@ body > * {
   z-index: 1;
 }
 
+.embed-page {
+  min-height: 0;
+  background: transparent;
+}
+
+.embed-page::before,
+.embed-page::after {
+  display: none;
+}
+
+.embed-page > * {
+  position: static;
+  z-index: auto;
+}
+
+.embed-shell {
+  width: 100%;
+  padding: 0.75rem;
+}
+
 .landing-page,
 .copy-page {
   width: min(960px, calc(100vw - 2rem));
@@ -73,6 +93,79 @@ body > * {
 
 .copy-page {
   padding: 3rem 0 4rem;
+}
+
+.register-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.register-lead {
+  max-width: 44rem;
+  margin: -0.35rem 0 0;
+  color: #42576d;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.register-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid #dce3ec;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.register-card-header {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.register-card-header h2,
+.register-card-header p {
+  margin: 0;
+}
+
+.register-form,
+.register-snippet {
+  display: grid;
+  gap: 1rem;
+}
+
+.register-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.register-form-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.register-form-status {
+  margin: 0;
+  min-height: 1.25rem;
+}
+
+.register-form-status-error {
+  color: #b3261e;
+}
+
+.register-snippet textarea {
+  width: 100%;
+  min-height: 16rem;
+  padding: 0.95rem 1rem;
+  border: 0;
+  border-radius: 12px;
+  background: #111827;
+  color: #f3f4f6;
+  font: 400 0.92rem/1.6 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  resize: vertical;
 }
 
 .widget-shell {
@@ -710,6 +803,7 @@ body > * {
 
 .message-board-form-row button,
 .message-board-more button,
+.register-form-row button,
 .widget-actions button {
   padding: 0.75rem 1rem;
   border: 0;
@@ -723,6 +817,7 @@ body > * {
 
 .message-board-form-row button:disabled,
 .message-board-more button:disabled,
+.register-form-row button:disabled,
 .widget-actions button:disabled {
   cursor: default;
   opacity: 0.6;
@@ -835,14 +930,15 @@ body > * {
     padding: 2rem 0 3rem;
   }
 
-  .landing-footer {
-    width: min(100%, 640px);
-  }
-
+  .register-form-row,
   .message-board-form-row,
   .message-board-list-header,
   .message-board-item-meta {
     align-items: start;
     flex-direction: column;
+  }
+
+  .landing-footer {
+    width: min(100%, 640px);
   }
 }

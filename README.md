@@ -8,11 +8,26 @@ The app deploys as a single Worker that:
 - serves the API from [src/index.ts](src/index.ts)
 - is intended to run at `https://castrio.me/im-a-robot`
 
+## Quickstart
+
+To embed the hosted verification widget on your own website:
+
+1. Open `https://castrio.me/im-a-robot/register`.
+2. Enter a site key and the website hostname that will embed the widget.
+3. Copy the generated embed snippet into your website.
+4. Listen for the `robot-verification-passed` event and send the returned `resultToken` to your backend.
+
+The registration page creates the site record, stores the generated site secret server-side, and returns copyable iframe embed code for the hostname you entered.
+
+For local testing, open `http://127.0.0.1:8787/im-a-robot/register` while `pnpm run dev` is running. For the full iframe options and the raw `iframe` version without the helper script, see [Embed Examples](#embed-examples).
+
 ## Runtime Shape
 
 Production URLs:
 
 - App page: `https://castrio.me/im-a-robot`
+- Embed page: `https://castrio.me/im-a-robot/embed`
+- Embed loader: `https://castrio.me/im-a-robot/embed-host.js`
 - API docs page: `https://castrio.me/im-a-robot/docs`
 - OpenAPI JSON: `https://castrio.me/im-a-robot/openapi.json`
 - API challenge types: `https://castrio.me/im-a-robot/api/challenge/types`
@@ -188,7 +203,76 @@ Then verify:
 - the widget loads a challenge
 - the widget only returns a signed `resultToken` after the service-required number of successful challenges
 
-## Embed Example
+## Embed Examples
+
+### Third-party iframe embed
+
+For true third-party reuse, host the verification UI inside an iframe served by this Worker.
+That keeps the widget, API calls, and CSS on the service origin while still letting the parent
+page receive the signed verification result.
+
+Simplest host-page markup:
+
+```html
+<div data-robot-check data-site-key="site_demo_123"></div>
+
+<script type="module" src="https://castrio.me/im-a-robot/embed-host.js"></script>
+<script>
+  document.querySelector("[data-robot-check]").addEventListener("robot-verification-passed", async (event) => {
+    const { resultToken, expiresAt } = event.detail;
+    console.log("Verification passed", { resultToken, expiresAt });
+
+    // Send resultToken to your own backend, then have your backend call
+    // POST https://castrio.me/im-a-robot/api/verify with your site secret.
+  });
+</script>
+```
+
+Optional `data-*` attributes for the container:
+
+- `data-site-key`: public site identifier; defaults to `site_demo_123`
+- `data-hostname`: override the hostname sent to the verification API; defaults to the current page host
+- `data-parent-origin`: override the parent origin used for iframe `postMessage`; defaults to the current page origin
+- `data-embed-id`: stable identifier echoed back in resize and verification events
+- `data-title`: iframe title text for accessibility
+- `data-docs-path`, `data-privacy-path`, `data-terms-path`: override the widget links with service-relative paths
+
+If you do not want the helper script, you can embed the iframe directly:
+
+```html
+<iframe
+  src="https://castrio.me/im-a-robot/embed?siteKey=site_demo_123&hostname=customer.example&parentOrigin=https%3A%2F%2Fcustomer.example"
+  title="Robot verification"
+  style="width:100%;min-height:188px;border:0;overflow:hidden"
+></iframe>
+
+<script>
+  window.addEventListener("message", (event) => {
+    if (event.origin !== "https://castrio.me") {
+      return;
+    }
+
+    if (event.data?.source !== "robot-check-embed") {
+      return;
+    }
+
+    if (event.data.type === "robot-verification-passed") {
+      console.log("Verification passed", event.data.detail);
+    }
+  });
+</script>
+```
+
+The iframe posts these messages to the parent page:
+
+- `robot-check-ready`
+- `robot-check-resize`
+- `robot-verification-passed`
+
+The helper script automatically resizes the iframe and re-dispatches those as DOM events on the
+container element.
+
+### Same-origin custom element
 
 The demo page uses:
 
@@ -210,6 +294,7 @@ You also need to load the widget script:
 Optional widget attributes:
 
 - `site-key`: public site identifier; defaults to `site_demo_123`
+- `hostname`: override the hostname sent to the challenge start API; useful for iframe-based embeddings
 - `app-base-path`: base path where the Worker is mounted; defaults to `/im-a-robot` when embedded under that path and `""` otherwise
 - `docs-path`: override for the API docs link
 - `privacy-path`: override for the Privacy link

@@ -107,6 +107,7 @@ export function resolveWidgetConfig(element, pathname) {
   return {
     appBasePath,
     siteKey: element.getAttribute("site-key")?.trim() || DEFAULT_SITE_KEY,
+    hostname: normalizeHostname(element.getAttribute("hostname")),
     docsPath: normalizeRelativePath(element.getAttribute("docs-path")) ?? `${appBasePath}/docs/`,
     privacyPath: normalizeRelativePath(element.getAttribute("privacy-path")) ?? `${appBasePath}/privacy`,
     termsPath: normalizeRelativePath(element.getAttribute("terms-path")) ?? `${appBasePath}/terms`,
@@ -338,6 +339,27 @@ function normalizeAppBasePath(value) {
   }
 
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function normalizeHostname(value) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    if (trimmed.includes("://")) {
+      return new URL(trimmed).host;
+    }
+
+    return new URL(`https://${trimmed}`).host;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeRelativePath(value) {

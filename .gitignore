@@ -33,3 +33,8 @@ site/chess-board-loader.js
 
 # Logs
 *.log
+
+# Local challenge audit tools
+site/challenge-audit.html
+site/challenge-audit.js
+site/chess-board-loader.js

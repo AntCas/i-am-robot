@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register your site | I'm a robot</title>
+  <link rel="icon" type="image/svg+xml" href="/im-a-robot/favicon.svg">
+  <link rel="stylesheet" href="/im-a-robot/styles.css">
+</head>
+<body>
+  <main class="copy-page register-page">
+    <p class="eyebrow">Registration</p>
+    <h1 class="copy-title">Create a site key for your website</h1>
+    <p class="register-lead">
+      Pick a site key, tell the service which hostname will embed the widget, and copy the
+      ready-to-paste snippet for your website.
+    </p>
+
+    <section class="register-card" aria-labelledby="register-form-title">
+      <div class="register-card-header">
+        <h2 id="register-form-title">Register a site</h2>
+        <p class="muted">This simple flow creates a site record and returns the embed code. Management can come later.</p>
+      </div>
+
+      <form class="register-form" data-role="register-form">
+        <div class="register-grid">
+          <label class="message-board-label">
+            Site key
+            <input
+              type="text"
+              name="siteKey"
+              required
+              minlength="3"
+              maxlength="64"
+              pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,63}"
+              placeholder="site_customer_123"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+            >
+          </label>
+
+          <label class="message-board-label">
+            Website hostname
+            <input
+              type="text"
+              name="hostname"
+              required
+              placeholder="customer.example"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="url"
+            >
+          </label>
+        </div>
+
+        <div class="register-form-row">
+          <button type="submit" data-role="submit-button">Create site key</button>
+          <p class="register-form-status muted" data-role="form-status"></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="register-card hidden" aria-labelledby="register-result-title" data-role="result-card">
+      <div class="register-card-header">
+        <h2 id="register-result-title">Embed code</h2>
+        <p class="muted" data-role="result-summary"></p>
+      </div>
+
+      <div class="register-snippet">
+        <label class="message-board-label">
+          Copy this snippet into your website
+          <textarea rows="12" readonly data-role="embed-code"></textarea>
+        </label>
+
+        <div class="register-form-row">
+          <button type="button" data-role="copy-button">Copy embed code</button>
+          <p class="register-form-status muted" data-role="copy-status"></p>
+        </div>
+      </div>
+    </section>
+
+    <p class="copy-back"><a href="/im-a-robot">Back to the demo</a></p>
+  </main>
+
+  <script type="module" src="/im-a-robot/register.js"></script>
+</body>
+</html>

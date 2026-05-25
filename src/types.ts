@@ -21,6 +21,12 @@ export interface SiteConfig {
 	widgetVerificationPolicy?: VerificationPolicy;
 }
 
+export interface SiteUsage {
+	siteKey: string;
+	requestCount: number;
+	lastRequestAt: string | null;
+}
+
 export interface VerificationPolicy {
 	requiredChallengesToPass: number;
 }
@@ -256,6 +262,11 @@ export interface SubmitRequestBody {
 export interface VerifyRequestBody {
 	secret?: string;
 	resultToken?: string;
+}
+
+export interface RegisterSiteRequestBody {
+	siteKey?: string;
+	hostname?: string;
 }
 
 export interface MessageBoardPostRequestBody {

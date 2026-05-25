@@ -27,12 +27,14 @@ import type {
 	ChallengeGradingKey,
 	ChallengePrompt,
 	Env,
+	RegisterSiteRequestBody,
 	MessageBoardPostPage,
 	MessageBoardPost,
 	MessageBoardPostVerification,
 	MessageBoardPostRequestBody,
 	ResultTokenPayload,
 	SiteConfig,
+	SiteUsage,
 	StartRequestBody,
 	SubmitRequestBody,
 	VerifyRequestBody,
@@ -53,6 +55,7 @@ const MESSAGE_BOARD_META_KEY = "message-board:meta";
 const MESSAGE_BOARD_LEGACY_INDEX_KEY = "message-board:index";
 const MESSAGE_BOARD_POST_KEY_PREFIX = "message-board:post:";
 const MESSAGE_BOARD_REVERSE_TIMESTAMP_MAX = 9_999_999_999_999;
+const SITE_USAGE_KEY_PREFIX = "site-usage:";
 
 const API_DOCS_PATH = `${APP_BASE_PATH}/docs`;
 
@@ -65,6 +68,10 @@ export default {
 		}
 
 		try {
+			if (request.method === "POST" && isApiRequestPath(pathname, "/api/sites/register")) {
+				return await handleRegisterSiteRequest(request, env);
+			}
+
 			if (request.method === "POST" && isApiRequestPath(pathname, "/api/challenge/start")) {
 				return await handleChallengeStartRequest(request, env);
 			}
@@ -105,6 +112,42 @@ export default {
 	},
 };
 
+export async function handleRegisterSiteRequest(request: Request, env: Env): Promise<Response> {
+	const requestBody = (await request.json()) as RegisterSiteRequestBody;
+	const requestUrl = new URL(request.url);
+	const siteKey = normalizeSiteKey(requestBody.siteKey);
+	const hostname = normalizeHostnameInput(requestBody.hostname);
+
+	if (!siteKey) {
+		return createJsonErrorResponse("invalid_site_key", 400);
+	}
+
+	if (!hostname) {
+		return createJsonErrorResponse("invalid_hostname", 400);
+	}
+
+	const existingSiteConfig = await loadSiteConfig(env, siteKey);
+	if (existingSiteConfig) {
+		return createJsonErrorResponse("site_key_taken", 409);
+	}
+
+	await saveSiteConfig(env, {
+		siteKey,
+		secret: createSiteSecret(),
+		allowedHostnames: [hostname],
+	});
+
+	return createJsonResponse(
+		{
+			success: true,
+			siteKey,
+			hostname,
+			embedCode: createEmbedCodeSnippet(requestUrl, siteKey, hostname),
+		},
+		201,
+	);
+}
+
 export async function handleChallengeStartRequest(request: Request, env: Env): Promise<Response> {
 	const requestBody = (await request.json()) as StartRequestBody;
 	const siteKey = requestBody.siteKey?.trim();
@@ -134,6 +177,8 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	if (!isAllowedHostname(siteConfig.allowedHostnames, hostname)) {
 		return createJsonErrorResponse("hostname_not_allowed", 403);
 	}
+
+	await incrementSiteRequestCount(env, siteKey);
 
 	const verificationPolicy = resolveVerificationPolicy({
 		siteConfig,
@@ -249,6 +294,8 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 	if (verificationSession.status !== "active") {
 		return createJsonErrorResponse("verification_session_closed", 409);
 	}
+
+	await incrementSiteRequestCount(env, session.siteKey);
 
 	const submittedAt = new Date();
 	const deadlineAt = new Date(session.deadlineAt);
@@ -399,6 +446,8 @@ export async function handleVerifyRequest(request: Request, env: Env): Promise<R
 		return createJsonErrorResponse("invalid_result_token", 401);
 	}
 
+	await incrementSiteRequestCount(env, verifiedTokenPayload.sk);
+
 	return createJsonResponse({
 		success: true,
 		verdict: verifiedTokenPayload.verdict,
@@ -452,6 +501,8 @@ export async function handleCreateMessageRequest(request: Request, env: Env): Pr
 	if (!verifiedPostingContext) {
 		return createJsonErrorResponse("invalid_result_token", 401);
 	}
+
+	await incrementSiteRequestCount(env, verifiedPostingContext.verificationSession.siteKey);
 
 	const post: MessageBoardPost = {
 		id: getRandomId("msg"),
@@ -514,6 +565,15 @@ export async function loadSiteConfig(env: Env, siteKey: string): Promise<SiteCon
 	return null;
 }
 
+export async function saveSiteConfig(env: Env, siteConfig: SiteConfig): Promise<void> {
+	await env.SITES.put(`site:${siteConfig.siteKey}`, JSON.stringify(siteConfig));
+}
+
+export async function loadSiteUsage(env: Env, siteKey: string): Promise<SiteUsage | null> {
+	const usage = await env.SITES.get(`${SITE_USAGE_KEY_PREFIX}${siteKey}`, "json");
+	return normalizeSiteUsage(siteKey, usage);
+}
+
 export function parseDefaultSiteConfig(rawDefaultSiteConfig?: string): SiteConfig | null {
 	if (!rawDefaultSiteConfig) {
 		return null;
@@ -539,7 +599,16 @@ export async function serveStaticAssetResponse(request: Request, env: Env, pathn
 
 	const requestUrl = new URL(request.url);
 	const assetUrl = new URL(assetPath, requestUrl.origin);
-	return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+	const assetResponse = await env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+	const responseHeaders = new Headers(assetResponse.headers);
+	responseHeaders.set("Access-Control-Allow-Origin", "*");
+	responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+
+	return new Response(assetResponse.body, {
+		status: assetResponse.status,
+		statusText: assetResponse.statusText,
+		headers: responseHeaders,
+	});
 }
 
 export async function loadChallengeSession(env: Env, sessionId: string): Promise<ChallengeSession | null> {
@@ -885,6 +954,78 @@ function isValidVerificationPolicy(verificationPolicy: VerificationPolicy | unde
 		Number.isSafeInteger(verificationPolicy.requiredChallengesToPass) &&
 		verificationPolicy.requiredChallengesToPass >= 1
 	);
+}
+
+async function incrementSiteRequestCount(env: Env, siteKey: string): Promise<void> {
+	const currentUsage = (await loadSiteUsage(env, siteKey)) ?? {
+		siteKey,
+		requestCount: 0,
+		lastRequestAt: null,
+	};
+
+	await env.SITES.put(
+		`${SITE_USAGE_KEY_PREFIX}${siteKey}`,
+		JSON.stringify({
+			siteKey,
+			requestCount: currentUsage.requestCount + 1,
+			lastRequestAt: new Date().toISOString(),
+		}),
+	);
+}
+
+function normalizeSiteUsage(siteKey: string, value: unknown): SiteUsage | null {
+	if (!value || typeof value !== "object") {
+		return null;
+	}
+
+	const requestCount = Reflect.get(value, "requestCount");
+	const lastRequestAt = Reflect.get(value, "lastRequestAt");
+	if (!Number.isSafeInteger(requestCount) || requestCount < 0) {
+		return null;
+	}
+
+	if (lastRequestAt !== null && typeof lastRequestAt !== "string") {
+		return null;
+	}
+
+	return {
+		siteKey,
+		requestCount,
+		lastRequestAt,
+	};
+}
+
+function normalizeSiteKey(value?: string): string | null {
+	const normalizedValue = value?.trim().toLowerCase() ?? "";
+	if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(normalizedValue)) {
+		return null;
+	}
+
+	return normalizedValue;
+}
+
+function createSiteSecret(): string {
+	return getRandomId("site_secret");
+}
+
+function createEmbedCodeSnippet(requestUrl: URL, siteKey: string, hostname: string): string {
+	const embedScriptUrl = new URL(`${APP_BASE_PATH}/embed-host.js`, requestUrl.origin).toString();
+	return `<div data-robot-check data-site-key="${siteKey}" data-hostname="${hostname}"></div>
+
+<script type="module" src="${embedScriptUrl}"></script>
+<script>
+  document
+    .querySelector("[data-robot-check]")
+    .addEventListener("robot-verification-passed", async (event) => {
+      const { resultToken, expiresAt } = event.detail;
+
+      await fetch("/your-backend/verify-robot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultToken, expiresAt }),
+      });
+    });
+</script>`;
 }
 
 interface VerifiedPostingContext {

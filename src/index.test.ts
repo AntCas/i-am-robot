@@ -3,17 +3,22 @@ import assert from "node:assert/strict";
 
 import worker from "./index.ts";
 import {
+	handleRegisterSiteRequest,
 	handleChallengeStartRequest,
 	handleChallengeSubmitRequest,
 	handleCreateMessageRequest,
 	handleGetMessagesRequest,
 	handleVerifyRequest,
 	loadChallengeSession,
+	loadSiteConfig,
+	loadSiteUsage,
+	serveStaticAssetResponse,
 } from "./index.ts";
 import { chessPuzzleChallenge } from "./challenges/_chess-puzzle.ts";
 import { hashValueChallenge } from "./challenges/_hash-value.ts";
 import { challengeDefinitions } from "./challenges/index.ts";
 import { MINIMUM_CHALLENGE_TIME_LIMIT_MS, resolveChallengeTimeLimitMs } from "./challenges/shared.ts";
+import { getStaticAssetPath } from "./utils/http.ts";
 
 class MemoryKVNamespace {
 	store: Map<string, string>;
@@ -69,13 +74,18 @@ class MemoryKVNamespace {
 }
 
 function createEnv({
+	allowedHostnames = ["castrio.me"],
 	requiredChallengesToPass,
 	widgetRequiredChallengesToPass,
-}: { requiredChallengesToPass?: number; widgetRequiredChallengesToPass?: number } = {}) {
+}: {
+	allowedHostnames?: string[];
+	requiredChallengesToPass?: number;
+	widgetRequiredChallengesToPass?: number;
+} = {}) {
 	const siteConfig: Record<string, unknown> = {
 		siteKey: "site_demo_123",
 		secret: "secret_demo_abc",
-		allowedHostnames: ["castrio.me"],
+		allowedHostnames,
 	};
 
 	if (requiredChallengesToPass !== undefined) {
@@ -173,6 +183,151 @@ test("challenge type catalog lists formats and non-live examples without creatin
 test("challenge time limit resolver enforces the default minimum without capping longer limits", () => {
 	assert.equal(resolveChallengeTimeLimitMs(5_000), MINIMUM_CHALLENGE_TIME_LIMIT_MS);
 	assert.equal(resolveChallengeTimeLimitMs(MINIMUM_CHALLENGE_TIME_LIMIT_MS + 1_000), 61_000);
+});
+
+test("embed page path resolves to the hosted iframe asset", () => {
+	assert.equal(getStaticAssetPath("/im-a-robot/embed"), "/embed/index.html");
+	assert.equal(getStaticAssetPath("/im-a-robot/embed/"), "/embed/index.html");
+});
+
+test("register page path resolves to the hosted registration asset", () => {
+	assert.equal(getStaticAssetPath("/im-a-robot/register"), "/register/index.html");
+	assert.equal(getStaticAssetPath("/im-a-robot/register/"), "/register/index.html");
+});
+
+test("site registration stores a new site config and returns embed code", async () => {
+	const env = createEnv();
+	const response = await handleRegisterSiteRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/sites/register", {
+			siteKey: "Site_Customer_123",
+			hostname: "https://customer.example/path",
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 201);
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, true);
+	assert.equal(responseData.siteKey, "site_customer_123");
+	assert.equal(responseData.hostname, "customer.example");
+	assert.match(responseData.embedCode, /data-site-key="site_customer_123"/);
+	assert.match(responseData.embedCode, /data-hostname="customer\.example"/);
+	assert.match(responseData.embedCode, /https:\/\/robot\.example\/im-a-robot\/embed-host\.js/);
+
+	const siteConfig = await loadSiteConfig(env as never, "site_customer_123");
+	assert.ok(siteConfig);
+	assert.equal(siteConfig.siteKey, "site_customer_123");
+	assert.deepEqual(siteConfig.allowedHostnames, ["customer.example"]);
+	assert.match(siteConfig.secret, /^site_secret_[a-f0-9]+$/);
+});
+
+test("site registration rejects duplicate site keys", async () => {
+	const env = createEnv();
+	const response = await handleRegisterSiteRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/sites/register", {
+			siteKey: "site_demo_123",
+			hostname: "customer.example",
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 409);
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, false);
+	assert.equal(responseData.error, "site_key_taken");
+});
+
+test("static asset responses include CORS headers for third-party module embeds", async () => {
+	const env = createEnv();
+	const response = await serveStaticAssetResponse(
+		new Request("https://robot.example/im-a-robot/embed-host.js"),
+		env as never,
+		"/im-a-robot/embed-host.js",
+	);
+
+	assert.equal(response.status, 200);
+	assert.equal(response.headers.get("Access-Control-Allow-Origin"), "*");
+	assert.equal(response.headers.get("Access-Control-Allow-Methods"), "GET, HEAD, OPTIONS");
+});
+
+test("site usage counter increments across start, submit, and verify requests", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv();
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+				mode: "prove_robot",
+			}),
+			env as never,
+		);
+
+		assert.equal(startResponse.status, 200);
+		let usage = await loadSiteUsage(env as never, "site_demo_123");
+		assert.ok(usage);
+		assert.equal(usage.requestCount, 1);
+		assert.ok(typeof usage.lastRequestAt === "string");
+
+		const startData = await readJson(startResponse);
+		const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+		if (!challengeSession) {
+			throw new Error("Expected challenge session to be stored");
+		}
+
+		const submitResponse = await handleChallengeSubmitRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+				sessionId: startData.sessionId,
+				answer: getCorrectAnswerFromSession(challengeSession),
+			}),
+			env as never,
+		);
+
+		assert.equal(submitResponse.status, 200);
+		usage = await loadSiteUsage(env as never, "site_demo_123");
+		assert.ok(usage);
+		assert.equal(usage.requestCount, 2);
+
+		const submitData = await readJson(submitResponse);
+		const verifyResponse = await handleVerifyRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/verify", {
+				secret: "secret_demo_abc",
+				resultToken: submitData.resultToken,
+			}),
+			env as never,
+		);
+
+		assert.equal(verifyResponse.status, 200);
+		usage = await loadSiteUsage(env as never, "site_demo_123");
+		assert.ok(usage);
+		assert.equal(usage.requestCount, 3);
+	} finally {
+		Math.random = originalMathRandom;
+	}
+});
+
+test("widget challenge start accepts an explicit embed hostname", async () => {
+	const env = createEnv({
+		allowedHostnames: ["customer.example"],
+	});
+	const response = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			mode: "widget",
+			hostname: "customer.example",
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 200);
+	const responseData = await readJson(response);
+	assert.equal(typeof responseData.sessionId, "string");
+
+	const session = await loadChallengeSession(env as never, responseData.sessionId);
+	assert.ok(session);
+	assert.equal(session.hostname, "customer.example");
 });
 
 test("verification uses the server-configured multi-challenge policy before issuing a token", async () => {
