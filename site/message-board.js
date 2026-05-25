@@ -225,41 +225,28 @@ function getVerificationDetailsMarkup(verification) {
 
   return `
     <div class="message-board-verification" aria-label="Verification details">
-      <span>${escapeHtml(formatPostSource(verification.source))}</span>
-      <span>Verified in ${escapeHtml(formatDuration(verification.verificationDurationMs))}</span>
-      <span>${escapeHtml(formatChallengeCount(verification.successfulChallenges))}</span>
-      <span>Attempt ${escapeHtml(normalizeAttemptNumber(verification.attemptNumber))}</span>
+      <span>posted_via: ${escapeHtml(formatPostSource(verification.source))}</span>
+      <span>verified_ms: ${escapeHtml(formatDurationMs(verification.verificationDurationMs))}</span>
+      <span>challenges_passed: ${escapeHtml(formatChallengeCount(verification.successfulChallenges))}</span>
+      <span>attempt: ${escapeHtml(normalizeAttemptNumber(verification.attemptNumber))}</span>
     </div>
   `;
 }
 
 function formatPostSource(source) {
-  return source === "widget_gui" ? "Posted via widget GUI" : "Posted via API";
+  return source === "widget_gui" ? "widget_gui" : "api";
 }
 
 function formatChallengeCount(value) {
-  const challengeCount = Number.isSafeInteger(value) && value >= 0 ? value : 0;
-  const challengeLabel = challengeCount === 1 ? "challenge" : "challenges";
-  return `${challengeCount} ${challengeLabel} passed`;
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
 
-function formatDuration(value) {
+function formatDurationMs(value) {
   if (!Number.isFinite(value) || value < 0) {
-    return "unknown time";
+    return "unknown";
   }
 
-  const seconds = value / 1000;
-  if (seconds < 10) {
-    return `${seconds.toFixed(1)}s`;
-  }
-
-  if (seconds < 60) {
-    return `${Math.round(seconds)}s`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  return `${minutes}m ${remainingSeconds}s`;
+  return String(Math.round(value)).padStart(2, "0");
 }
 
 function normalizeAttemptNumber(value) {
