@@ -9,6 +9,7 @@ import {
 	getRandomId,
 } from "./challenges/index.ts";
 import { getChallengeCatalog } from "./challenges/catalog.ts";
+import { resolveChallengeTimeLimitMs } from "./challenges/shared.ts";
 import {
 	createJsonErrorResponse,
 	createJsonResponse,
@@ -171,8 +172,9 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	const challengeDefinition = getRandomChallengeDefinition();
 	const now = new Date();
 	const startedChallenge = await challengeDefinition.start({ siteKey, hostname, now });
+	const challengeTimeLimitMs = resolveChallengeTimeLimitMs(startedChallenge.timeLimitMs);
 	const issuedAt = now.toISOString();
-	const deadlineAt = new Date(now.getTime() + startedChallenge.timeLimitMs).toISOString();
+	const deadlineAt = new Date(now.getTime() + challengeTimeLimitMs).toISOString();
 	const sessionId = getRandomId("sess");
 	const session = createPendingChallengeSession({
 		sessionId,

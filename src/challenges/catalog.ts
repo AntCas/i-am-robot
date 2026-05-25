@@ -1,5 +1,6 @@
 import type { ChallengeCatalogEntry, ChallengeDefinition } from "../types.ts";
 import { challengeDefinitions } from "./index.ts";
+import { resolveChallengeTimeLimitMs } from "./shared.ts";
 
 export function getChallengeCatalog(): ChallengeCatalogEntry[] {
 	return challengeDefinitions.map(createChallengeCatalogEntry);
@@ -14,6 +15,6 @@ function createChallengeCatalogEntry(challengeDefinition: ChallengeDefinition): 
 		answerFormat: example.prompt.answerFormat,
 		responseFormat,
 		example,
-		timeLimitMs,
+		timeLimitMs: resolveChallengeTimeLimitMs(timeLimitMs),
 	};
 }

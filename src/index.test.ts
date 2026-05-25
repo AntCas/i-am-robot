@@ -13,6 +13,7 @@ import {
 import { chessPuzzleChallenge } from "./challenges/_chess-puzzle.ts";
 import { hashValueChallenge } from "./challenges/_hash-value.ts";
 import { challengeDefinitions } from "./challenges/index.ts";
+import { MINIMUM_CHALLENGE_TIME_LIMIT_MS, resolveChallengeTimeLimitMs } from "./challenges/shared.ts";
 
 class MemoryKVNamespace {
 	store: Map<string, string>;
@@ -138,9 +139,15 @@ test("challenge type catalog lists formats and non-live examples without creatin
 		responseData.challenges.map((challenge: Record<string, any>) => challenge.type),
 		["timed_math", "randomness_audit", "code_error", "chess_puzzle", "hash_value"],
 	);
+	assert.ok(
+		responseData.challenges.every(
+			(challenge: Record<string, any>) => challenge.timeLimitMs >= MINIMUM_CHALLENGE_TIME_LIMIT_MS,
+		),
+	);
 
 	const timedMath = responseData.challenges[0];
 	assert.equal(timedMath.answerFormat, "integer");
+	assert.equal(timedMath.timeLimitMs, MINIMUM_CHALLENGE_TIME_LIMIT_MS);
 	assert.deepEqual(timedMath.responseFormat.answer, { value: "<integer-as-string>" });
 	assert.equal(timedMath.example.prompt.body, "What is 17 * 23 + 9?");
 	assert.deepEqual(timedMath.example.answer, { value: "400" });
@@ -161,6 +168,11 @@ test("challenge type catalog lists formats and non-live examples without creatin
 	assert.equal(hashValue.example.prompt.hashFunction, "SHA-256");
 	assert.equal(hashValue.example.prompt.valueToHash, "robot-check-42");
 	assert.equal(env.SESSIONS.store.size, 0);
+});
+
+test("challenge time limit resolver enforces the default minimum without capping longer limits", () => {
+	assert.equal(resolveChallengeTimeLimitMs(5_000), MINIMUM_CHALLENGE_TIME_LIMIT_MS);
+	assert.equal(resolveChallengeTimeLimitMs(MINIMUM_CHALLENGE_TIME_LIMIT_MS + 1_000), 61_000);
 });
 
 test("verification uses the server-configured multi-challenge policy before issuing a token", async () => {
@@ -275,6 +287,29 @@ test("api verification defaults to one challenge", async () => {
 	const startData = await readJson(startResponse);
 	assert.equal(startData.verification.requiredChallengesToPass, 1);
 	assert.equal(startData.verification.remainingChallenges, 1);
+});
+
+test("challenge start deadlines use the default minimum time limit", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv();
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+			}),
+			env as never,
+		);
+
+		assert.equal(startResponse.status, 200);
+		const startData = await readJson(startResponse);
+		assert.equal(startData.challenge.type, "timed_math");
+		assert.equal(Date.parse(startData.deadlineAt) - Date.parse(startData.issuedAt), MINIMUM_CHALLENGE_TIME_LIMIT_MS);
+	} finally {
+		Math.random = originalMathRandom;
+	}
 });
 
 test("api policy does not override the widget challenge count", async () => {

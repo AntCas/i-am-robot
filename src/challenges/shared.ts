@@ -1,5 +1,11 @@
 import type { ChallengeScoreContext, ChallengeScoreResult } from "../types.ts";
 
+export const MINIMUM_CHALLENGE_TIME_LIMIT_MS = 60_000;
+
+export function resolveChallengeTimeLimitMs(timeLimitMs: number): number {
+	return Math.max(timeLimitMs, MINIMUM_CHALLENGE_TIME_LIMIT_MS);
+}
+
 export function wasSubmittedAfterDeadline(context: ChallengeScoreContext): boolean {
 	return context.submittedAt > context.deadlineAt;
 }

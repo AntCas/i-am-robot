@@ -604,7 +604,8 @@
           },
           "timeLimitMs": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 60000,
+            "description": "Effective server-enforced challenge time limit. Challenge defaults are raised to at least 60 seconds, while longer challenge-specific limits are preserved."
           }
         }
       },
