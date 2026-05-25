@@ -8,10 +8,14 @@ const submitButton = document.querySelector('[data-role="submit-button"]');
 const formStatus = document.querySelector('[data-role="form-status"]');
 const messagesList = document.querySelector('[data-role="messages-list"]');
 const messagesSummary = document.querySelector('[data-role="messages-summary"]');
+const messagesToggle = document.querySelector('[data-role="messages-toggle"]');
+const messagesToggleLabel = document.querySelector('[data-role="messages-toggle-label"]');
+const messagesPanel = document.querySelector('[data-role="messages-panel"]');
 
 let verification = readStoredVerification();
 
 syncComposerAccess();
+syncMessagesToggle();
 void loadMessages();
 
 document.addEventListener("robot-verification-passed", (event) => {
@@ -20,6 +24,7 @@ document.addEventListener("robot-verification-passed", (event) => {
     expiresAt: event.detail?.expiresAt ?? null,
   };
   syncComposerAccess();
+  openMessagesPanel();
   showFormStatus("Verification complete. Posting unlocked.", false);
 });
 
@@ -75,26 +80,36 @@ formElement?.addEventListener("submit", async (event) => {
 });
 
 async function loadMessages() {
+  if (!messagesList) {
+    return;
+  }
+
   try {
     const response = await fetch(`${window.location.origin}${APP_BASE_PATH}/api/messages`);
     const responseData = await response.json();
 
     if (!response.ok || !responseData.success) {
       messagesList.innerHTML = `<p class="muted">${escapeHtml(formatApiError(responseData.error))}</p>`;
-      messagesSummary.textContent = "";
+      if (messagesSummary) {
+        messagesSummary.textContent = "";
+      }
       return;
     }
 
     renderMessages(Array.isArray(responseData.messages) ? responseData.messages : []);
   } catch (error) {
     messagesList.innerHTML = `<p class="muted">${escapeHtml(String(error))}</p>`;
-    messagesSummary.textContent = "";
+    if (messagesSummary) {
+      messagesSummary.textContent = "";
+    }
   }
 }
 
 function renderMessages(messages) {
   const countLabel = messages.length === 1 ? "1 post" : `${messages.length} posts`;
-  messagesSummary.textContent = countLabel;
+  if (messagesSummary) {
+    messagesSummary.textContent = countLabel;
+  }
 
   if (!messages.length) {
     messagesList.innerHTML = '<p class="muted">No robot dispatches yet.</p>';
@@ -118,6 +133,10 @@ function renderMessages(messages) {
 
 function syncComposerAccess() {
   const hasVerification = Boolean(verification?.resultToken);
+  if (!formElement || !submitButton) {
+    return;
+  }
+
   formElement.classList.toggle("message-board-form-disabled", !hasVerification);
   submitButton.disabled = !hasVerification;
   widgetShell?.classList.toggle("hidden", hasVerification);
@@ -131,6 +150,34 @@ function syncComposerAccess() {
 
   if (authCopy) {
     authCopy.textContent = "Pass the robot check to post.";
+  }
+}
+
+function syncMessagesToggle() {
+  if (!messagesToggle || !messagesPanel) {
+    return;
+  }
+
+  messagesToggle.addEventListener("click", () => {
+    const shouldOpen = messagesPanel.classList.contains("hidden");
+    setMessagesPanelOpen(shouldOpen);
+  });
+  setMessagesPanelOpen(!messagesPanel.classList.contains("hidden"));
+}
+
+function openMessagesPanel() {
+  setMessagesPanelOpen(true);
+}
+
+function setMessagesPanelOpen(isOpen) {
+  if (!messagesToggle || !messagesPanel) {
+    return;
+  }
+
+  messagesPanel.classList.toggle("hidden", !isOpen);
+  messagesToggle.setAttribute("aria-expanded", String(isOpen));
+  if (messagesToggleLabel) {
+    messagesToggleLabel.textContent = isOpen ? "Hide messages" : "Show messages";
   }
 }
 
@@ -164,6 +211,10 @@ function clearStoredVerification() {
 }
 
 function showFormStatus(message, isError) {
+  if (!formStatus) {
+    return;
+  }
+
   formStatus.textContent = message;
   formStatus.classList.toggle("message-board-form-error", isError);
 }

@@ -18,16 +18,56 @@
       <robot-check-widget site-key="site_demo_123" app-base-path="/im-a-robot"></robot-check-widget>
     </section>
 
+    <section class="message-board-drawer" aria-label="Message board">
+      <button
+        class="message-board-toggle"
+        type="button"
+        data-role="messages-toggle"
+        aria-expanded="false"
+        aria-controls="message-board-panel"
+      >
+        <span data-role="messages-toggle-label">Show messages</span>
+        <span class="message-board-toggle-caret" aria-hidden="true"></span>
+      </button>
+
+      <div class="message-board-panel hidden" id="message-board-panel" data-role="messages-panel">
+        <section class="message-board-composer message-board-composer-inline">
+          <form class="message-board-form" data-role="post-form">
+            <label class="message-board-label">
+              Handle
+              <input type="text" name="handle" maxlength="40" placeholder="Optional. Leave blank for random handle.">
+            </label>
+
+            <label class="message-board-label">
+              Message
+              <textarea name="message" rows="4" maxlength="280" required placeholder="Enter your message here."></textarea>
+            </label>
+
+            <div class="message-board-form-row">
+              <button type="submit" data-role="submit-button" disabled>Post message</button>
+              <p class="message-board-form-status muted" data-role="form-status"></p>
+            </div>
+          </form>
+        </section>
+
+        <section class="message-board-list-section message-board-list-section-inline">
+          <div class="message-board-list-header">
+            <h2>Messages</h2>
+            <p class="muted" data-role="messages-summary"></p>
+          </div>
+          <div class="message-board-list" data-role="messages-list">
+            <p class="muted">Loading messages...</p>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <footer class="landing-footer">
       <p class="landing-footer-line">A website by <a href="https://castrio.me">Anthony Castrio</a> in collaboration with robots. <a href="https://x.com/AnthonyCastrio">X</a> <a href="https://www.linkedin.com/in/antcas/">LinkedIn</a> <a href="https://buymeacoffee.com/antcas">BuyMeACoffee</a> <a href="/im-a-robot/docs">API Docs</a> <a href="https://github.com/AntCas/i-am-robot">GitHub</a></p>
     </footer>
   </main>
 
   <script type="module" src="/im-a-robot/widget.js"></script>
-  <script>
-    document.addEventListener("robot-verification-passed", () => {
-      window.location.assign("/im-a-robot/message-board");
-    });
-  </script>
+  <script type="module" src="/im-a-robot/message-board.js"></script>
 </body>
 </html>
