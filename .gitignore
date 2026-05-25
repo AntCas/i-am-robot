@@ -25,6 +25,11 @@ Session.vim
 
 # Private challenge answer banks
 *.answerbank.json
+site/challenge-audit.html
+site/challenge-audit.js
+site/chess-board-loader.js
+
+
 
 # Logs
 *.log
