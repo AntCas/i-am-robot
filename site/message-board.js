@@ -1,8 +1,6 @@
 const VERIFICATION_STORAGE_KEY = "robot-check-verification";
 const APP_BASE_PATH = "/im-a-robot";
 
-const authCopy = document.querySelector('[data-role="auth-copy"]');
-const widgetShell = document.querySelector('[data-role="widget-shell"]');
 const formElement = document.querySelector('[data-role="post-form"]');
 const submitButton = document.querySelector('[data-role="submit-button"]');
 const formStatus = document.querySelector('[data-role="form-status"]');
@@ -139,18 +137,6 @@ function syncComposerAccess() {
 
   formElement.classList.toggle("message-board-form-disabled", !hasVerification);
   submitButton.disabled = !hasVerification;
-  widgetShell?.classList.toggle("hidden", hasVerification);
-
-  if (hasVerification) {
-    if (authCopy) {
-      authCopy.textContent = "Verified robot detected. Post away.";
-    }
-    return;
-  }
-
-  if (authCopy) {
-    authCopy.textContent = "Pass the robot check to post.";
-  }
 }
 
 function syncMessagesToggle() {

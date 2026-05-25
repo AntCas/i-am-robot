@@ -40,11 +40,6 @@ body {
   padding: 3rem 0 4rem;
 }
 
-.message-board-page {
-  display: grid;
-  gap: 2rem;
-}
-
 .widget-shell {
   width: min(100%, 640px);
   margin: 0 auto;
@@ -190,40 +185,18 @@ body {
   color: var(--muted);
 }
 
-.message-board-intro {
-  margin: -1rem 0 0;
-  max-width: 42rem;
-}
-
 .message-board-composer,
 .message-board-list-section {
   display: grid;
   gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid #d7dee8;
-  border-radius: var(--widget-card-radius);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 18px 40px rgba(23, 50, 77, 0.08);
-  backdrop-filter: blur(14px);
 }
 
-.message-board-composer-inline,
-.message-board-list-section-inline {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.message-board-auth,
 .message-board-form,
 .message-board-list {
   display: grid;
   gap: 1rem;
 }
 
-.message-board-auth-copy,
 .message-board-list-header h2,
 .message-board-item p {
   margin: 0;
