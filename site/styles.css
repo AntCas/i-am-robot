@@ -151,6 +151,13 @@ body > * {
   color: #b3261e;
 }
 
+.register-secret-note {
+  max-width: 44rem;
+  margin: -0.35rem 0 0;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
 .register-snippet textarea {
   width: 100%;
   min-height: 16rem;

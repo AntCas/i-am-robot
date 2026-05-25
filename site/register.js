@@ -3,8 +3,11 @@ const submitButton = document.querySelector('[data-role="submit-button"]');
 const formStatusElement = document.querySelector('[data-role="form-status"]');
 const resultCardElement = document.querySelector('[data-role="result-card"]');
 const embedCodeElement = document.querySelector('[data-role="embed-code"]');
+const siteSecretElement = document.querySelector('[data-role="site-secret"]');
 const copyButton = document.querySelector('[data-role="copy-button"]');
 const copyStatusElement = document.querySelector('[data-role="copy-status"]');
+const copySecretButton = document.querySelector('[data-role="copy-secret-button"]');
+const copySecretStatusElement = document.querySelector('[data-role="copy-secret-status"]');
 const languageTabElements = Array.from(document.querySelectorAll('[data-role="language-tab"]'));
 const languagePanelElements = Array.from(document.querySelectorAll('[data-role="language-panel"]'));
 
@@ -21,6 +24,12 @@ if (copyButton && embedCodeElement && copyStatusElement) {
   });
 }
 
+if (copySecretButton && siteSecretElement && copySecretStatusElement) {
+  copySecretButton.addEventListener("click", () => {
+    void copySiteSecret();
+  });
+}
+
 languageTabElements.forEach((tabElement) => {
   tabElement.addEventListener("click", () => {
     selectLanguageExample(tabElement.dataset.languageGroup, tabElement.dataset.language);
@@ -32,8 +41,18 @@ async function registerSite() {
   const hostname = String(formData.get("hostname") ?? "").trim();
 
   submitButton.disabled = true;
+  if (copyButton) {
+    copyButton.disabled = true;
+  }
+  if (copySecretButton) {
+    copySecretButton.disabled = true;
+  }
   setStatus(formStatusElement, "Generating embed code...", false);
   setStatus(copyStatusElement, "", false);
+  setStatus(copySecretStatusElement, "", false);
+  if (siteSecretElement) {
+    siteSecretElement.value = "";
+  }
 
   try {
     const response = await fetch(`${window.location.origin}/im-a-robot/api/sites/register`, {
@@ -51,7 +70,15 @@ async function registerSite() {
     }
 
     embedCodeElement.value = responseData.embedCode;
-    copyButton.disabled = false;
+    if (siteSecretElement) {
+      siteSecretElement.value = responseData.secret ?? "";
+    }
+    if (copyButton) {
+      copyButton.disabled = false;
+    }
+    if (copySecretButton) {
+      copySecretButton.disabled = !responseData.secret;
+    }
     setStatus(formStatusElement, "Embed code generated. Copy the snippet below.", false);
   } catch (error) {
     setStatus(formStatusElement, String(error), true);
@@ -74,6 +101,23 @@ async function copyEmbedCode() {
     embedCodeElement.focus();
     embedCodeElement.select();
     setStatus(copyStatusElement, "Select and copy the code manually.", true);
+  }
+}
+
+async function copySiteSecret() {
+  const siteSecret = siteSecretElement.value;
+  if (!siteSecret) {
+    setStatus(copySecretStatusElement, "Generate embed code first.", true);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(siteSecret);
+    setStatus(copySecretStatusElement, "Secret copied.", false);
+  } catch {
+    siteSecretElement.focus();
+    siteSecretElement.select();
+    setStatus(copySecretStatusElement, "Select and copy the secret manually.", true);
   }
 }
 

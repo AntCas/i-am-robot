@@ -208,6 +208,7 @@ test("site registration stores a new site config and returns embed code", async 
 	const responseData = await readJson(response);
 	assert.equal(responseData.success, true);
 	assert.match(responseData.siteKey, /^site_[a-f0-9]+$/);
+	assert.match(responseData.secret, /^site_secret_[a-f0-9]+$/);
 	assert.equal(responseData.hostname, "customer.example");
 	assert.match(responseData.embedCode, new RegExp(`data-site-key="${responseData.siteKey}"`));
 	assert.match(responseData.embedCode, /data-hostname="customer\.example"/);
@@ -218,6 +219,7 @@ test("site registration stores a new site config and returns embed code", async 
 	assert.equal(siteConfig.siteKey, responseData.siteKey);
 	assert.deepEqual(siteConfig.allowedHostnames, ["customer.example"]);
 	assert.match(siteConfig.secret, /^site_secret_[a-f0-9]+$/);
+	assert.equal(siteConfig.secret, responseData.secret);
 });
 
 test("site registration retries generated site key collisions", async () => {

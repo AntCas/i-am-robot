@@ -61,73 +61,11 @@
     <section class="register-card" aria-labelledby="register-events-title">
       <div class="register-card-header">
         <h2 id="register-events-title">Step 3: Listen for Events</h2>
-        <p class="muted">
-          Listen for the <code>robot-verification-passed</code> event and send the returned
-          <code>resultToken</code> to your backend.
-        </p>
       </div>
 
-      <div class="register-example">
-        <h3>Frontend</h3>
-      </div>
-
-      <div class="register-language-switcher" role="tablist" aria-label="Frontend language examples">
-        <button type="button" class="is-active" role="tab" aria-selected="true" aria-controls="frontend-javascript-example" data-role="language-tab" data-language-group="frontend" data-language="javascript">JavaScript</button>
-        <button type="button" role="tab" aria-selected="false" aria-controls="frontend-react-example" data-role="language-tab" data-language-group="frontend" data-language="react">React</button>
-      </div>
-
-      <div class="register-examples">
-        <article class="register-example" id="frontend-javascript-example" role="tabpanel" data-role="language-panel" data-language-group="frontend" data-language="javascript">
-          <pre><code>document.addEventListener("robot-verification-passed", async (event) =&gt; {
-  const { resultToken } = event.detail;
-
-  const response = await fetch("/your-backend/verify-robot", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resultToken }),
-  });
-
-  const verification = await response.json();
-  if (verification.success) {
-    // Continue with the protected action.
-  }
-});</code></pre>
-        </article>
-
-        <article class="register-example hidden" id="frontend-react-example" role="tabpanel" data-role="language-panel" data-language-group="frontend" data-language="react">
-          <pre><code>import { useEffect } from "react";
-
-export function RobotVerificationListener({ onVerified }) {
-  useEffect(() =&gt; {
-    async function handleVerificationPassed(event) {
-      const { resultToken } = event.detail;
-
-      const response = await fetch("/your-backend/verify-robot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resultToken }),
-      });
-
-      const verification = await response.json();
-      if (verification.success) {
-        onVerified?.(verification);
-      }
-    }
-
-    document.addEventListener("robot-verification-passed", handleVerificationPassed);
-    return () =&gt; {
-      document.removeEventListener("robot-verification-passed", handleVerificationPassed);
-    };
-  }, [onVerified]);
-
-  return null;
-}</code></pre>
-        </article>
-      </div>
-
-      <div class="register-example">
-        <h3>Backend</h3>
-      </div>
+      <p class="register-secret-note muted">
+        Add an event listener to your backend to listen for the <code>robot-verification-passed</code> events and verify result tokens.
+      </p>
 
       <div class="register-language-switcher" role="tablist" aria-label="Backend language examples">
         <button type="button" class="is-active" role="tab" aria-selected="true" aria-controls="node-example" data-role="language-tab" data-language-group="backend" data-language="node">Node.js</button>
@@ -179,6 +117,21 @@ def verify_robot():
 
     return jsonify(response.json()), response.status_code</code></pre>
         </article>
+      </div>
+      <label class="message-board-label">
+        I_AM_ROBOT_SITE_SECRET
+        <input
+          type="text"
+          readonly
+          data-role="site-secret"
+          placeholder="Generate embed code in Step 1 to fill this in."
+        >
+        <span class="muted register-secret-note">Save this value in your server-side <code>.env</code> file.</span>
+      </label>
+
+      <div class="register-form-row">
+        <button type="button" data-role="copy-secret-button" disabled>Copy secret</button>
+        <p class="register-form-status muted" data-role="copy-secret-status"></p>
       </div>
     </section>
 

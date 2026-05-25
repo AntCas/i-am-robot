@@ -123,10 +123,11 @@ export async function handleRegisterSiteRequest(request: Request, env: Env): Pro
 	}
 
 	const siteKey = await createUniqueSiteKey(env);
+	const secret = createSiteSecret();
 
 	await saveSiteConfig(env, {
 		siteKey,
-		secret: createSiteSecret(),
+		secret,
 		allowedHostnames: [hostname],
 	});
 
@@ -134,6 +135,7 @@ export async function handleRegisterSiteRequest(request: Request, env: Env): Pro
 		{
 			success: true,
 			siteKey,
+			secret,
 			hostname,
 			embedCode: createEmbedCodeSnippet(requestUrl, siteKey, hostname),
 		},
