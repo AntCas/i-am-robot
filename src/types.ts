@@ -189,6 +189,7 @@ export interface VerificationSession {
 	issuedAt: string;
 	completedAt: string | null;
 	status: VerificationSessionStatus;
+	attemptNumber: number;
 	requiredChallengesToPass: number;
 	successfulChallenges: number;
 	resultTokenId: string | null;
@@ -244,6 +245,7 @@ export interface StartRequestBody {
 	hostname?: string;
 	mode?: string;
 	verificationSessionId?: string;
+	attemptNumber?: number;
 }
 
 export interface SubmitRequestBody {
@@ -260,6 +262,19 @@ export interface MessageBoardPostRequestBody {
 	message?: string;
 	handle?: string;
 	resultToken?: string;
+}
+
+export type MessageBoardPostSource = "api" | "widget_gui";
+
+export interface MessageBoardPostVerification {
+	source: MessageBoardPostSource;
+	mode: VerificationMode;
+	verificationDurationMs: number;
+	successfulChallenges: number;
+	requiredChallengesToPass: number;
+	attemptNumber: number;
+	issuedAt: string;
+	completedAt: string;
 }
 
 export interface ResultTokenPayload {
@@ -280,4 +295,5 @@ export interface MessageBoardPost {
 	message: string;
 	handle: string;
 	postedAt: string;
+	verification: MessageBoardPostVerification;
 }

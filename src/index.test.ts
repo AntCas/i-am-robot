@@ -430,6 +430,12 @@ test("message board accepts verified posts and returns them to public readers", 
 		assert.equal(postData.success, true);
 		assert.equal(postData.post.handle, "servo-99");
 		assert.equal(postData.post.message, "Beep boop. Systems nominal.");
+		assert.equal(postData.post.verification.source, "api");
+		assert.equal(postData.post.verification.mode, "prove_robot");
+		assert.equal(postData.post.verification.successfulChallenges, 1);
+		assert.equal(postData.post.verification.requiredChallengesToPass, 1);
+		assert.equal(postData.post.verification.attemptNumber, 1);
+		assert.equal(typeof postData.post.verification.verificationDurationMs, "number");
 
 		const listResponse = await handleGetMessagesRequest(env as never);
 		assert.equal(listResponse.status, 200);
@@ -438,6 +444,70 @@ test("message board accepts verified posts and returns them to public readers", 
 		assert.equal(listData.messages.length, 1);
 		assert.equal(listData.messages[0].handle, "servo-99");
 		assert.equal(listData.messages[0].message, "Beep boop. Systems nominal.");
+		assert.equal(listData.messages[0].verification.source, "api");
+	} finally {
+		Math.random = originalMathRandom;
+	}
+});
+
+test("message board records widget verification attempts and challenge totals", async () => {
+	const originalMathRandom = Math.random;
+	Math.random = () => 0;
+
+	try {
+		const env = createEnv({ widgetRequiredChallengesToPass: 1 });
+
+		const startResponse = await handleChallengeStartRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+				siteKey: "site_demo_123",
+				hostname: "castrio.me",
+				mode: "widget",
+				attemptNumber: 2,
+			}),
+			env as never,
+		);
+		const startData = await readJson(startResponse);
+		assert.equal(startData.verification.attemptNumber, 2);
+
+		const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+		if (!challengeSession) {
+			throw new Error("Expected challenge session to be stored");
+		}
+
+		const submitResponse = await handleChallengeSubmitRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+				sessionId: startData.sessionId,
+				answer: getCorrectAnswerFromSession(challengeSession),
+			}),
+			env as never,
+		);
+		const submitData = await readJson(submitResponse);
+		assert.ok(typeof submitData.resultToken === "string");
+
+		const postResponse = await handleCreateMessageRequest(
+			new Request("https://robot.example/im-a-robot/api/messages", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${submitData.resultToken}`,
+				},
+				body: JSON.stringify({
+					handle: "servo-widget",
+					message: "Widget attempt recorded.",
+				}),
+			}),
+			env as never,
+		);
+
+		assert.equal(postResponse.status, 200);
+		const postData = await readJson(postResponse);
+		assert.equal(postData.post.verification.source, "widget_gui");
+		assert.equal(postData.post.verification.mode, "widget");
+		assert.equal(postData.post.verification.successfulChallenges, 1);
+		assert.equal(postData.post.verification.requiredChallengesToPass, 1);
+		assert.equal(postData.post.verification.attemptNumber, 2);
+		assert.equal(postData.post.verification.issuedAt, startData.issuedAt);
+		assert.equal(postData.post.verification.completedAt, submitData.completedAt);
 	} finally {
 		Math.random = originalMathRandom;
 	}

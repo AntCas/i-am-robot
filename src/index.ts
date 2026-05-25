@@ -27,6 +27,7 @@ import type {
 	ChallengePrompt,
 	Env,
 	MessageBoardPost,
+	MessageBoardPostVerification,
 	MessageBoardPostRequestBody,
 	ResultTokenPayload,
 	SiteConfig,
@@ -140,6 +141,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 				hostname,
 				mode: verificationMode,
 				issuedAt: new Date().toISOString(),
+				attemptNumber: normalizeAttemptNumber(requestBody.attemptNumber),
 				requiredChallengesToPass: verificationPolicy.requiredChallengesToPass,
 			});
 
@@ -430,7 +432,8 @@ export async function handleCreateMessageRequest(request: Request, env: Env): Pr
 		return createJsonErrorResponse("missing_signing_secret", 500);
 	}
 
-	if (!(await loadVerifiedPostingTokenPayload(env, resultToken, signingSecret))) {
+	const verifiedPostingContext = await loadVerifiedPostingContext(env, resultToken, signingSecret);
+	if (!verifiedPostingContext) {
 		return createJsonErrorResponse("invalid_result_token", 401);
 	}
 
@@ -439,6 +442,7 @@ export async function handleCreateMessageRequest(request: Request, env: Env): Pr
 		message,
 		handle: normalizeMessageHandle(requestedHandle) ?? (await createAutomatedHandle(request)),
 		postedAt: new Date().toISOString(),
+		verification: createMessageBoardPostVerification(verifiedPostingContext.verificationSession),
 	};
 
 	await saveMessageBoardPost(env, post);
@@ -625,6 +629,7 @@ function createActiveVerificationSession(args: {
 	hostname: string;
 	mode: VerificationMode;
 	issuedAt: string;
+	attemptNumber: number;
 	requiredChallengesToPass: number;
 }): VerificationSession {
 	return {
@@ -635,6 +640,7 @@ function createActiveVerificationSession(args: {
 		issuedAt: args.issuedAt,
 		completedAt: null,
 		status: "active",
+		attemptNumber: args.attemptNumber,
 		requiredChallengesToPass: args.requiredChallengesToPass,
 		successfulChallenges: 0,
 		resultTokenId: null,
@@ -669,12 +675,14 @@ function createVerificationProgressPayload(session: VerificationSession): {
 	successfulChallenges: number;
 	requiredChallengesToPass: number;
 	remainingChallenges: number;
+	attemptNumber: number;
 	status: VerificationSession["status"];
 } {
 	return {
 		successfulChallenges: session.successfulChallenges,
 		requiredChallengesToPass: session.requiredChallengesToPass,
 		remainingChallenges: Math.max(0, session.requiredChallengesToPass - session.successfulChallenges),
+		attemptNumber: getVerificationAttemptNumber(session),
 		status: session.status,
 	};
 }
@@ -740,11 +748,16 @@ function isValidVerificationPolicy(verificationPolicy: VerificationPolicy | unde
 	);
 }
 
-async function loadVerifiedPostingTokenPayload(
+interface VerifiedPostingContext {
+	verifiedTokenPayload: ResultTokenPayload;
+	verificationSession: VerificationSession;
+}
+
+async function loadVerifiedPostingContext(
 	env: Env,
 	resultToken: string,
 	signingSecret: string,
-): Promise<ResultTokenPayload | null> {
+): Promise<VerifiedPostingContext | null> {
 	const verifiedTokenPayload = await verifyResultToken(resultToken, signingSecret);
 	if (!verifiedTokenPayload) {
 		return null;
@@ -755,7 +768,11 @@ async function loadVerifiedPostingTokenPayload(
 		return null;
 	}
 
-	if (verificationSession.status !== "completed" || verificationSession.resultTokenId !== verifiedTokenPayload.tid) {
+	if (
+		verificationSession.status !== "completed" ||
+		!verificationSession.completedAt ||
+		verificationSession.resultTokenId !== verifiedTokenPayload.tid
+	) {
 		return null;
 	}
 
@@ -772,7 +789,37 @@ async function loadVerifiedPostingTokenPayload(
 		return null;
 	}
 
-	return verifiedTokenPayload;
+	return {
+		verifiedTokenPayload,
+		verificationSession,
+	};
+}
+
+function createMessageBoardPostVerification(session: VerificationSession): MessageBoardPostVerification {
+	const issuedAtMs = new Date(session.issuedAt).getTime();
+	const completedAtMs = new Date(session.completedAt ?? session.issuedAt).getTime();
+	const durationMs = Number.isFinite(issuedAtMs) && Number.isFinite(completedAtMs)
+		? Math.max(0, completedAtMs - issuedAtMs)
+		: 0;
+
+	return {
+		source: session.mode === "widget" ? "widget_gui" : "api",
+		mode: session.mode,
+		verificationDurationMs: durationMs,
+		successfulChallenges: session.successfulChallenges,
+		requiredChallengesToPass: session.requiredChallengesToPass,
+		attemptNumber: getVerificationAttemptNumber(session),
+		issuedAt: session.issuedAt,
+		completedAt: session.completedAt ?? session.issuedAt,
+	};
+}
+
+function normalizeAttemptNumber(value: number | undefined): number {
+	return typeof value === "number" && Number.isSafeInteger(value) && value >= 1 ? value : 1;
+}
+
+function getVerificationAttemptNumber(session: Pick<VerificationSession, "attemptNumber">): number {
+	return normalizeAttemptNumber(session.attemptNumber);
 }
 
 function normalizeMessageHandle(value?: string): string | null {

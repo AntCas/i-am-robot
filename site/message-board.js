@@ -20,6 +20,7 @@ document.addEventListener("robot-verification-passed", (event) => {
   verification = {
     resultToken: event.detail?.resultToken ?? null,
     expiresAt: event.detail?.expiresAt ?? null,
+    attemptNumber: normalizeAttemptNumber(event.detail?.attemptNumber),
   };
   syncComposerAccess();
   openMessagesPanel();
@@ -123,6 +124,7 @@ function renderMessages(messages) {
             <time datetime="${escapeHtml(message.postedAt)}">${escapeHtml(formatPostedDate(message.postedAt))}</time>
           </div>
           <p>${escapeHtml(message.message)}</p>
+          ${getVerificationDetailsMarkup(message.verification)}
         </article>
       `,
     )
@@ -185,7 +187,10 @@ function readStoredVerification() {
       return null;
     }
 
-    return parsedValue;
+    return {
+      ...parsedValue,
+      attemptNumber: normalizeAttemptNumber(parsedValue.attemptNumber),
+    };
   } catch {
     clearStoredVerification();
     return null;
@@ -211,6 +216,54 @@ function formatPostedDate(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function getVerificationDetailsMarkup(verification) {
+  if (!verification) {
+    return '<div class="message-board-verification muted">Verification details unavailable</div>';
+  }
+
+  return `
+    <div class="message-board-verification" aria-label="Verification details">
+      <span>${escapeHtml(formatPostSource(verification.source))}</span>
+      <span>Verified in ${escapeHtml(formatDuration(verification.verificationDurationMs))}</span>
+      <span>${escapeHtml(formatChallengeCount(verification.successfulChallenges))}</span>
+      <span>Attempt ${escapeHtml(normalizeAttemptNumber(verification.attemptNumber))}</span>
+    </div>
+  `;
+}
+
+function formatPostSource(source) {
+  return source === "widget_gui" ? "Posted via widget GUI" : "Posted via API";
+}
+
+function formatChallengeCount(value) {
+  const challengeCount = Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  const challengeLabel = challengeCount === 1 ? "challenge" : "challenges";
+  return `${challengeCount} ${challengeLabel} passed`;
+}
+
+function formatDuration(value) {
+  if (!Number.isFinite(value) || value < 0) {
+    return "unknown time";
+  }
+
+  const seconds = value / 1000;
+  if (seconds < 10) {
+    return `${seconds.toFixed(1)}s`;
+  }
+
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+function normalizeAttemptNumber(value) {
+  return Number.isSafeInteger(value) && value >= 1 ? value : 1;
 }
 
 function formatApiError(errorCode) {

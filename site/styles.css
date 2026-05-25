@@ -272,6 +272,21 @@ body {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
+.message-board-verification {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+}
+
+.message-board-verification span {
+  padding: 0.28rem 0.45rem;
+  border: 1px solid #d5e2f0;
+  border-radius: 999px;
+  background: rgba(232, 240, 254, 0.72);
+  color: #31516f;
+}
+
 .widget-card {
   --widget-accent: #1a73e8;
   --widget-status-color: #b3261e;

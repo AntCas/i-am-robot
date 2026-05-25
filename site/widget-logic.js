@@ -112,12 +112,13 @@ export function resolveWidgetConfig(element, pathname) {
   };
 }
 
-export function createStartChallengeRequestBody(siteKey, hostname, verificationSessionId) {
+export function createStartChallengeRequestBody(siteKey, hostname, verificationSessionId, attemptNumber = 1) {
   return {
     siteKey,
     hostname,
     mode: "widget",
     verificationSessionId,
+    attemptNumber,
   };
 }
 

@@ -184,11 +184,12 @@ test("getProgressSegmentStates matches required challenge count", () => {
 	assert.deepEqual(getProgressSegmentStates(1, 1), [true]);
 });
 
-test("createStartChallengeRequestBody identifies widget verification mode", () => {
-	assert.deepEqual(createStartChallengeRequestBody("site_demo_123", "castrio.me", null), {
+test("createStartChallengeRequestBody identifies widget verification mode and attempt", () => {
+	assert.deepEqual(createStartChallengeRequestBody("site_demo_123", "castrio.me", null, 2), {
 		siteKey: "site_demo_123",
 		hostname: "castrio.me",
 		mode: "widget",
 		verificationSessionId: null,
+		attemptNumber: 2,
 	});
 });

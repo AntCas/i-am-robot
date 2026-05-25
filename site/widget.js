@@ -191,6 +191,7 @@ class RobotCheckWidget extends HTMLElement {
             this.state.config.siteKey,
             window.location.host,
             this.state.verificationSessionId,
+            this.getCurrentAttemptNumber(),
           ),
         ),
       });
@@ -262,7 +263,7 @@ class RobotCheckWidget extends HTMLElement {
   storeVerificationToken(resultToken, expiresAt) {
     this.state.resultToken = resultToken ?? null;
     this.state.resultTokenExpiresAt = expiresAt ?? null;
-    persistVerificationToken(this.state.resultToken, this.state.resultTokenExpiresAt);
+    persistVerificationToken(this.state.resultToken, this.state.resultTokenExpiresAt, this.getCurrentAttemptNumber());
   }
 
   showSuccessMessage(message) {
@@ -364,6 +365,10 @@ class RobotCheckWidget extends HTMLElement {
     return true;
   }
 
+  getCurrentAttemptNumber() {
+    return this.state.attemptFailures + 1;
+  }
+
   dispatchVerificationPassedEvent() {
     this.dispatchEvent(
       new CustomEvent("robot-verification-passed", {
@@ -371,6 +376,7 @@ class RobotCheckWidget extends HTMLElement {
         detail: {
           resultToken: this.state.resultToken,
           expiresAt: this.state.resultTokenExpiresAt,
+          attemptNumber: this.getCurrentAttemptNumber(),
         },
       }),
     );
@@ -397,7 +403,7 @@ async function loadChessBoardComponent() {
   }
 }
 
-function persistVerificationToken(resultToken, expiresAt) {
+function persistVerificationToken(resultToken, expiresAt, attemptNumber) {
   if (!resultToken || !expiresAt) {
     clearStoredVerification();
     return;
@@ -408,6 +414,7 @@ function persistVerificationToken(resultToken, expiresAt) {
     JSON.stringify({
       resultToken,
       expiresAt,
+      attemptNumber,
     }),
   );
 }

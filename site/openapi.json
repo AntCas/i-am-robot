@@ -478,6 +478,7 @@
           "successfulChallenges",
           "requiredChallengesToPass",
           "remainingChallenges",
+          "attemptNumber",
           "status"
         ],
         "properties": {
@@ -492,6 +493,11 @@
           "remainingChallenges": {
             "type": "integer",
             "minimum": 0
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based verification attempt number for this flow."
           },
           "status": {
             "$ref": "#/components/schemas/VerificationStatus"
@@ -516,6 +522,12 @@
           "verificationSessionId": {
             "type": "string",
             "description": "Send this to continue an active multi-round verification flow."
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1,
+            "description": "Optional 1-based attempt number supplied by the widget when a user retries after a failed verification flow."
           }
         }
       },
@@ -1062,9 +1074,60 @@
           }
         }
       },
+      "MessageBoardPostSource": {
+        "type": "string",
+        "enum": ["api", "widget_gui"]
+      },
+      "MessageBoardPostVerification": {
+        "type": "object",
+        "required": [
+          "source",
+          "mode",
+          "verificationDurationMs",
+          "successfulChallenges",
+          "requiredChallengesToPass",
+          "attemptNumber",
+          "issuedAt",
+          "completedAt"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/MessageBoardPostSource",
+            "description": "Whether the post came from the direct API flow or the widget GUI verification flow."
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "verificationDurationMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elapsed time between verification session issue and completion."
+          },
+          "successfulChallenges": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "requiredChallengesToPass": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "attemptNumber": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "MessageBoardPost": {
         "type": "object",
-        "required": ["id", "handle", "message", "postedAt"],
+        "required": ["id", "handle", "message", "postedAt", "verification"],
         "properties": {
           "id": {
             "type": "string"
@@ -1078,6 +1141,9 @@
           "postedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/MessageBoardPostVerification"
           }
         }
       },
