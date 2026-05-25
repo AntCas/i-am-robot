@@ -56,6 +56,7 @@ const MESSAGE_BOARD_LEGACY_INDEX_KEY = "message-board:index";
 const MESSAGE_BOARD_POST_KEY_PREFIX = "message-board:post:";
 const MESSAGE_BOARD_REVERSE_TIMESTAMP_MAX = 9_999_999_999_999;
 const SITE_USAGE_KEY_PREFIX = "site-usage:";
+const MAX_SITE_KEY_GENERATION_ATTEMPTS = 5;
 
 const API_DOCS_PATH = `${APP_BASE_PATH}/docs`;
 
@@ -115,21 +116,13 @@ export default {
 export async function handleRegisterSiteRequest(request: Request, env: Env): Promise<Response> {
 	const requestBody = (await request.json()) as RegisterSiteRequestBody;
 	const requestUrl = new URL(request.url);
-	const siteKey = normalizeSiteKey(requestBody.siteKey);
 	const hostname = normalizeHostnameInput(requestBody.hostname);
-
-	if (!siteKey) {
-		return createJsonErrorResponse("invalid_site_key", 400);
-	}
 
 	if (!hostname) {
 		return createJsonErrorResponse("invalid_hostname", 400);
 	}
 
-	const existingSiteConfig = await loadSiteConfig(env, siteKey);
-	if (existingSiteConfig) {
-		return createJsonErrorResponse("site_key_taken", 409);
-	}
+	const siteKey = await createUniqueSiteKey(env);
 
 	await saveSiteConfig(env, {
 		siteKey,
@@ -995,13 +988,15 @@ function normalizeSiteUsage(siteKey: string, value: unknown): SiteUsage | null {
 	};
 }
 
-function normalizeSiteKey(value?: string): string | null {
-	const normalizedValue = value?.trim().toLowerCase() ?? "";
-	if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(normalizedValue)) {
-		return null;
+async function createUniqueSiteKey(env: Env): Promise<string> {
+	for (let attempt = 0; attempt < MAX_SITE_KEY_GENERATION_ATTEMPTS; attempt += 1) {
+		const siteKey = getRandomId("site");
+		if (!(await loadSiteConfig(env, siteKey))) {
+			return siteKey;
+		}
 	}
 
-	return normalizedValue;
+	throw new Error("Could not create a unique site key.");
 }
 
 function createSiteSecret(): string {

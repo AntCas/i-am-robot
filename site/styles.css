@@ -111,11 +111,6 @@ body > * {
 .register-card {
   display: grid;
   gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid #dce3ec;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
 .register-card-header {
@@ -217,6 +212,7 @@ body > * {
 }
 
 .landing-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,6 +239,21 @@ body > * {
   line-height: 1;
   letter-spacing: -0.03em;
   color: #17324d;
+}
+
+.landing-header-register {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  color: var(--accent-2);
+  font: 400 0.95rem/1.2 "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+  text-decoration: underline;
+}
+
+.landing-header-register:hover,
+.landing-header-register:focus-visible {
+  color: #42576d;
 }
 
 .landing-footer a {
@@ -904,11 +915,18 @@ body > * {
 
   .landing-header {
     width: min(100%, 640px);
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .landing-header-mark {
     width: 24px;
     height: 24px;
+  }
+
+  .landing-header-register {
+    top: 0.75rem;
+    right: 0.75rem;
   }
 
   .widget-card,

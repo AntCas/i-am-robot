@@ -199,7 +199,6 @@ test("site registration stores a new site config and returns embed code", async 
 	const env = createEnv();
 	const response = await handleRegisterSiteRequest(
 		createJsonRequest("https://robot.example/im-a-robot/api/sites/register", {
-			siteKey: "Site_Customer_123",
 			hostname: "https://customer.example/path",
 		}),
 		env as never,
@@ -208,33 +207,69 @@ test("site registration stores a new site config and returns embed code", async 
 	assert.equal(response.status, 201);
 	const responseData = await readJson(response);
 	assert.equal(responseData.success, true);
-	assert.equal(responseData.siteKey, "site_customer_123");
+	assert.match(responseData.siteKey, /^site_[a-f0-9]+$/);
 	assert.equal(responseData.hostname, "customer.example");
-	assert.match(responseData.embedCode, /data-site-key="site_customer_123"/);
+	assert.match(responseData.embedCode, new RegExp(`data-site-key="${responseData.siteKey}"`));
 	assert.match(responseData.embedCode, /data-hostname="customer\.example"/);
 	assert.match(responseData.embedCode, /https:\/\/robot\.example\/im-a-robot\/embed-host\.js/);
 
-	const siteConfig = await loadSiteConfig(env as never, "site_customer_123");
+	const siteConfig = await loadSiteConfig(env as never, responseData.siteKey);
 	assert.ok(siteConfig);
-	assert.equal(siteConfig.siteKey, "site_customer_123");
+	assert.equal(siteConfig.siteKey, responseData.siteKey);
 	assert.deepEqual(siteConfig.allowedHostnames, ["customer.example"]);
 	assert.match(siteConfig.secret, /^site_secret_[a-f0-9]+$/);
 });
 
-test("site registration rejects duplicate site keys", async () => {
+test("site registration retries generated site key collisions", async () => {
+	const originalGetRandomValues = crypto.getRandomValues;
+	let callCount = 0;
+	crypto.getRandomValues = ((array: Uint8Array) => {
+		callCount += 1;
+		array.fill(callCount <= 1 ? 0 : 1);
+		return array;
+	}) as Crypto["getRandomValues"];
+
+	try {
+		const collidingSiteKey = "site_000000000000000000000000";
+		const env = createEnv();
+		await env.SITES.put(
+			`site:${collidingSiteKey}`,
+			JSON.stringify({
+				siteKey: collidingSiteKey,
+				secret: "existing_secret",
+				allowedHostnames: ["existing.example"],
+			}),
+		);
+
+		const response = await handleRegisterSiteRequest(
+			createJsonRequest("https://robot.example/im-a-robot/api/sites/register", {
+				hostname: "customer.example",
+			}),
+			env as never,
+		);
+
+		assert.equal(response.status, 201);
+		const responseData = await readJson(response);
+		assert.equal(responseData.siteKey, "site_010101010101010101010101");
+		assert.equal(callCount, 3);
+	} finally {
+		crypto.getRandomValues = originalGetRandomValues;
+	}
+});
+
+test("site registration rejects invalid hostnames", async () => {
 	const env = createEnv();
 	const response = await handleRegisterSiteRequest(
 		createJsonRequest("https://robot.example/im-a-robot/api/sites/register", {
-			siteKey: "site_demo_123",
-			hostname: "customer.example",
+			hostname: "not a valid hostname",
 		}),
 		env as never,
 	);
 
-	assert.equal(response.status, 409);
+	assert.equal(response.status, 400);
 	const responseData = await readJson(response);
 	assert.equal(responseData.success, false);
-	assert.equal(responseData.error, "site_key_taken");
+	assert.equal(responseData.error, "invalid_hostname");
 });
 
 test("static asset responses include CORS headers for third-party module embeds", async () => {

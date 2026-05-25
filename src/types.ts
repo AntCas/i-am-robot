@@ -265,7 +265,6 @@ export interface VerifyRequestBody {
 }
 
 export interface RegisterSiteRequestBody {
-	siteKey?: string;
 	hostname?: string;
 }
 

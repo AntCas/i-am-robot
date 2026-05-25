@@ -13,11 +13,11 @@ The app deploys as a single Worker that:
 To embed the hosted verification widget on your own website:
 
 1. Open `https://castrio.me/im-a-robot/register`.
-2. Enter a site key and the website hostname that will embed the widget.
-3. Copy the generated embed snippet into your website.
+2. Enter the website hostname that will embed the widget.
+3. Copy the generated embed snippet, including the generated site key, into your website.
 4. Listen for the `robot-verification-passed` event and send the returned `resultToken` to your backend.
 
-The registration page creates the site record, stores the generated site secret server-side, and returns copyable iframe embed code for the hostname you entered.
+The registration page creates the site record, generates the public site key, stores the generated site secret server-side, and returns copyable iframe embed code for the hostname you entered.
 
 For local testing, open `http://127.0.0.1:8787/im-a-robot/register` while `pnpm run dev` is running. For the full iframe options and the raw `iframe` version without the helper script, see [Embed Examples](#embed-examples).
 

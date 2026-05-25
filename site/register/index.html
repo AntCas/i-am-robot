@@ -9,53 +9,28 @@
 </head>
 <body>
   <main class="copy-page register-page">
-    <p class="eyebrow">Registration</p>
-    <h1 class="copy-title">Create a site key for your website</h1>
+    <h1 class="copy-title">Widget Installation</h1>
     <p class="register-lead">
-      Pick a site key, tell the service which hostname will embed the widget, and copy the
-      ready-to-paste snippet for your website.
+      Install our widget on any website to prevent humans from using your service
     </p>
 
     <section class="register-card" aria-labelledby="register-form-title">
-      <div class="register-card-header">
-        <h2 id="register-form-title">Register a site</h2>
-        <p class="muted">This simple flow creates a site record and returns the embed code. Management can come later.</p>
-      </div>
-
       <form class="register-form" data-role="register-form">
-        <div class="register-grid">
-          <label class="message-board-label">
-            Site key
-            <input
-              type="text"
-              name="siteKey"
-              required
-              minlength="3"
-              maxlength="64"
-              pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,63}"
-              placeholder="site_customer_123"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="off"
-            >
-          </label>
-
-          <label class="message-board-label">
-            Website hostname
-            <input
-              type="text"
-              name="hostname"
-              required
-              placeholder="customer.example"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="url"
-            >
-          </label>
-        </div>
+        <label class="message-board-label">
+          Website hostname
+          <input
+            type="text"
+            name="hostname"
+            required
+            placeholder="example.com"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="url"
+          >
+        </label>
 
         <div class="register-form-row">
-          <button type="submit" data-role="submit-button">Create site key</button>
+          <button type="submit" data-role="submit-button">Generate embed code</button>
           <p class="register-form-status muted" data-role="form-status"></p>
         </div>
       </form>
@@ -64,7 +39,6 @@
     <section class="register-card hidden" aria-labelledby="register-result-title" data-role="result-card">
       <div class="register-card-header">
         <h2 id="register-result-title">Embed code</h2>
-        <p class="muted" data-role="result-summary"></p>
       </div>
 
       <div class="register-snippet">
