@@ -158,16 +158,71 @@ body > * {
   line-height: 1.55;
 }
 
-.register-snippet textarea {
-  width: 100%;
-  min-height: 16rem;
-  padding: 0.95rem 1rem;
-  border: 0;
+.register-copy-surface {
+  position: relative;
+  display: block;
   border-radius: 12px;
-  background: #111827;
-  color: #f3f4f6;
-  font: 400 0.92rem/1.6 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  resize: vertical;
+  cursor: pointer;
+}
+
+.register-copy-surface[data-copy-disabled="true"] {
+  cursor: default;
+}
+
+.register-copy-surface:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+}
+
+.register-copy-surface input {
+  cursor: inherit;
+}
+
+.register-copy-surface pre {
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+.register-copy-surface input {
+  padding-right: 3rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.register-copy-surface-dark pre {
+  padding-right: 3rem;
+}
+
+.register-copy-surface:not([data-copy-disabled="true"]):hover pre {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24), 0 8px 20px rgba(17, 24, 39, 0.12);
+}
+
+.register-copy-surface-light:not([data-copy-disabled="true"]):hover input {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
+  background: #fff;
+}
+
+.register-copy-icon {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.9rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  opacity: 0.58;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.register-copy-surface-dark .register-copy-icon {
+  filter: invert(1);
+}
+
+.register-copy-surface:not([data-copy-disabled="true"]):hover .register-copy-icon {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.register-snippet pre {
+  min-height: 16rem;
 }
 
 .register-examples {
@@ -216,6 +271,7 @@ body > * {
   font-size: 1rem;
 }
 
+.register-snippet pre,
 .register-example pre {
   margin: 0;
   padding: 0.95rem 1rem;
@@ -431,6 +487,10 @@ body > * {
   font: inherit;
   font-weight: 400;
   color: inherit;
+}
+
+.register-copy-surface input {
+  padding-right: 3rem;
 }
 
 .message-board-label textarea {

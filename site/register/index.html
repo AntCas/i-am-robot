@@ -9,6 +9,13 @@
 </head>
 <body>
   <main class="copy-page register-page">
+
+    <header class="landing-header">
+      <img class="landing-header-mark" src="/im-a-robot/favicon.svg" alt="" aria-hidden="true">
+      <h1 class="landing-header-title">I'm a robot</h1>
+      <a class="landing-header-register" href="/im-a-robot">Demo</a>
+    </header>
+
     <h1 class="copy-title">Widget Installation</h1>
     <p class="register-lead">
       Install our widget on any website to prevent humans from using your service
@@ -47,14 +54,25 @@
 
       <div class="register-snippet">
         <label class="message-board-label">
-          Copy this snippet into your website
-          <textarea rows="12" readonly data-role="embed-code" placeholder="Generate embed code in Step 1 to fill this in."></textarea>
+          Click to copy this snippet into your website
+          <span
+            class="register-copy-surface register-copy-surface-dark"
+            role="button"
+            tabindex="0"
+            aria-label="Copy embed code"
+            data-role="copy-surface"
+            data-copy-source="embed-code"
+            data-copy-status="copy-status"
+            data-copy-success="Embed code copied."
+            data-copy-empty="Generate embed code first."
+            data-copy-disabled="true"
+          >
+            <pre><code data-role="embed-code">Generate embed code in Step 1 to fill this in.</code></pre>
+            <img class="register-copy-icon" src="/im-a-robot/copy-clipboard.png" alt="Copy embed code">
+          </span>
         </label>
 
-        <div class="register-form-row">
-          <button type="button" data-role="copy-button" disabled>Copy embed code</button>
-          <p class="register-form-status muted" data-role="copy-status"></p>
-        </div>
+        <p class="register-form-status muted" data-role="copy-status"></p>
       </div>
     </section>
 
@@ -74,7 +92,16 @@
 
       <div class="register-examples">
         <article class="register-example" id="node-example" role="tabpanel" data-role="language-panel" data-language-group="backend" data-language="node">
-          <pre><code>import express from "express";
+          <div
+            class="register-copy-surface register-copy-surface-dark"
+            role="button"
+            tabindex="0"
+            aria-label="Copy Node.js backend code"
+            data-role="copy-surface"
+            data-copy-status="copy-backend-status"
+            data-copy-success="Node.js backend code copied."
+          >
+            <pre><code>import express from "express";
 
 const app = express();
 app.use(express.json());
@@ -93,10 +120,21 @@ app.post("/your-backend/verify-robot", async (request, response) =&gt; {
 
   response.status(robotResponse.status).json(await robotResponse.json());
 });</code></pre>
+            <img class="register-copy-icon" src="/im-a-robot/copy-clipboard.png" alt="Copy Node.js backend code">
+          </div>
         </article>
 
         <article class="register-example hidden" id="python-example" role="tabpanel" data-role="language-panel" data-language-group="backend" data-language="python">
-          <pre><code>from flask import Flask, jsonify, request
+          <div
+            class="register-copy-surface register-copy-surface-dark"
+            role="button"
+            tabindex="0"
+            aria-label="Copy Python backend code"
+            data-role="copy-surface"
+            data-copy-status="copy-backend-status"
+            data-copy-success="Python backend code copied."
+          >
+            <pre><code>from flask import Flask, jsonify, request
 import os
 import requests
 
@@ -116,23 +154,37 @@ def verify_robot():
     )
 
     return jsonify(response.json()), response.status_code</code></pre>
+            <img class="register-copy-icon" src="/im-a-robot/copy-clipboard.png" alt="Copy Python backend code">
+          </div>
         </article>
       </div>
+      <p class="register-form-status muted" data-role="copy-backend-status"></p>
       <label class="message-board-label">
         I_AM_ROBOT_SITE_SECRET
-        <input
-          type="text"
-          readonly
-          data-role="site-secret"
-          placeholder="Generate embed code in Step 1 to fill this in."
+        <span
+          class="register-copy-surface register-copy-surface-light"
+          role="button"
+          tabindex="0"
+          aria-label="Copy site secret"
+          data-role="copy-surface"
+          data-copy-source="site-secret"
+          data-copy-status="copy-secret-status"
+          data-copy-success="Secret copied."
+          data-copy-empty="Generate embed code first."
+          data-copy-disabled="true"
         >
+          <input
+            type="text"
+            readonly
+            tabindex="-1"
+            data-role="site-secret"
+            placeholder="Generate embed code in Step 1 to fill this in."
+          >
+          <img class="register-copy-icon" src="/im-a-robot/copy-clipboard.png" alt="Copy site secret">
+        </span>
         <span class="muted register-secret-note">Save this value in your server-side <code>.env</code> file.</span>
       </label>
-
-      <div class="register-form-row">
-        <button type="button" data-role="copy-secret-button" disabled>Copy secret</button>
-        <p class="register-form-status muted" data-role="copy-secret-status"></p>
-      </div>
+      <p class="register-form-status muted" data-role="copy-secret-status"></p>
     </section>
 
     <p class="copy-back"><a href="/im-a-robot">Back to the demo</a></p>

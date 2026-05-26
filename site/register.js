@@ -4,12 +4,12 @@ const formStatusElement = document.querySelector('[data-role="form-status"]');
 const resultCardElement = document.querySelector('[data-role="result-card"]');
 const embedCodeElement = document.querySelector('[data-role="embed-code"]');
 const siteSecretElement = document.querySelector('[data-role="site-secret"]');
-const copyButton = document.querySelector('[data-role="copy-button"]');
 const copyStatusElement = document.querySelector('[data-role="copy-status"]');
-const copySecretButton = document.querySelector('[data-role="copy-secret-button"]');
 const copySecretStatusElement = document.querySelector('[data-role="copy-secret-status"]');
+const copySurfaceElements = Array.from(document.querySelectorAll('[data-role="copy-surface"]'));
 const languageTabElements = Array.from(document.querySelectorAll('[data-role="language-tab"]'));
 const languagePanelElements = Array.from(document.querySelectorAll('[data-role="language-panel"]'));
+const embedCodePlaceholder = "Generate embed code in Step 1 to fill this in.";
 
 if (formElement && submitButton && formStatusElement && resultCardElement && embedCodeElement) {
   formElement.addEventListener("submit", (event) => {
@@ -18,17 +18,20 @@ if (formElement && submitButton && formStatusElement && resultCardElement && emb
   });
 }
 
-if (copyButton && embedCodeElement && copyStatusElement) {
-  copyButton.addEventListener("click", () => {
-    void copyEmbedCode();
+copySurfaceElements.forEach((copySurfaceElement) => {
+  copySurfaceElement.addEventListener("click", () => {
+    void copySurfaceContent(copySurfaceElement);
   });
-}
 
-if (copySecretButton && siteSecretElement && copySecretStatusElement) {
-  copySecretButton.addEventListener("click", () => {
-    void copySiteSecret();
+  copySurfaceElement.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    void copySurfaceContent(copySurfaceElement);
   });
-}
+});
 
 languageTabElements.forEach((tabElement) => {
   tabElement.addEventListener("click", () => {
@@ -41,15 +44,12 @@ async function registerSite() {
   const hostname = String(formData.get("hostname") ?? "").trim();
 
   submitButton.disabled = true;
-  if (copyButton) {
-    copyButton.disabled = true;
-  }
-  if (copySecretButton) {
-    copySecretButton.disabled = true;
-  }
+  setCopySurfaceDisabled("embed-code", true);
+  setCopySurfaceDisabled("site-secret", true);
   setStatus(formStatusElement, "Generating embed code...", false);
   setStatus(copyStatusElement, "", false);
   setStatus(copySecretStatusElement, "", false);
+  embedCodeElement.textContent = embedCodePlaceholder;
   if (siteSecretElement) {
     siteSecretElement.value = "";
   }
@@ -69,16 +69,12 @@ async function registerSite() {
       return;
     }
 
-    embedCodeElement.value = responseData.embedCode;
+    embedCodeElement.textContent = responseData.embedCode;
     if (siteSecretElement) {
       siteSecretElement.value = responseData.secret ?? "";
     }
-    if (copyButton) {
-      copyButton.disabled = false;
-    }
-    if (copySecretButton) {
-      copySecretButton.disabled = !responseData.secret;
-    }
+    setCopySurfaceDisabled("embed-code", false);
+    setCopySurfaceDisabled("site-secret", !responseData.secret);
     setStatus(formStatusElement, "Embed code generated. Copy the snippet below.", false);
   } catch (error) {
     setStatus(formStatusElement, String(error), true);
@@ -87,38 +83,64 @@ async function registerSite() {
   }
 }
 
-async function copyEmbedCode() {
-  const embedCode = embedCodeElement.value;
-  if (!embedCode) {
-    setStatus(copyStatusElement, "Generate embed code first.", true);
+async function copySurfaceContent(copySurfaceElement) {
+  const statusElement = getCopyStatusElement(copySurfaceElement);
+  const copyText = getCopySurfaceText(copySurfaceElement);
+
+  if (copySurfaceElement.dataset.copyDisabled === "true" || !copyText) {
+    setStatus(statusElement, copySurfaceElement.dataset.copyEmpty ?? "Nothing to copy yet.", true);
     return;
   }
 
   try {
-    await navigator.clipboard.writeText(embedCode);
-    setStatus(copyStatusElement, "Embed code copied.", false);
+    await navigator.clipboard.writeText(copyText);
+    setStatus(statusElement, copySurfaceElement.dataset.copySuccess ?? "Copied.", false);
   } catch {
-    embedCodeElement.focus();
-    embedCodeElement.select();
-    setStatus(copyStatusElement, "Select and copy the code manually.", true);
+    selectCopySurfaceText(copySurfaceElement);
+    setStatus(statusElement, "Select and copy manually.", true);
   }
 }
 
-async function copySiteSecret() {
-  const siteSecret = siteSecretElement.value;
-  if (!siteSecret) {
-    setStatus(copySecretStatusElement, "Generate embed code first.", true);
+function getCopySurfaceText(copySurfaceElement) {
+  const sourceRole = copySurfaceElement.dataset.copySource;
+  const sourceElement = sourceRole ? document.querySelector(`[data-role="${sourceRole}"]`) : null;
+  if (sourceElement && "value" in sourceElement) {
+    return sourceElement.value.trim();
+  }
+
+  return copySurfaceElement.querySelector("code")?.textContent.trim() ?? "";
+}
+
+function getCopyStatusElement(copySurfaceElement) {
+  const statusRole = copySurfaceElement.dataset.copyStatus;
+  return statusRole ? document.querySelector(`[data-role="${statusRole}"]`) : null;
+}
+
+function selectCopySurfaceText(copySurfaceElement) {
+  const sourceRole = copySurfaceElement.dataset.copySource;
+  const sourceElement = sourceRole ? document.querySelector(`[data-role="${sourceRole}"]`) : null;
+  if (sourceElement && "select" in sourceElement) {
+    sourceElement.focus();
+    sourceElement.select();
     return;
   }
 
-  try {
-    await navigator.clipboard.writeText(siteSecret);
-    setStatus(copySecretStatusElement, "Secret copied.", false);
-  } catch {
-    siteSecretElement.focus();
-    siteSecretElement.select();
-    setStatus(copySecretStatusElement, "Select and copy the secret manually.", true);
+  const textElement = sourceElement ?? copySurfaceElement.querySelector("code");
+  if (textElement) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(textElement);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   }
+}
+
+function setCopySurfaceDisabled(sourceRole, isDisabled) {
+  copySurfaceElements.forEach((copySurfaceElement) => {
+    if (copySurfaceElement.dataset.copySource === sourceRole) {
+      copySurfaceElement.dataset.copyDisabled = String(isDisabled);
+    }
+  });
 }
 
 function setStatus(element, message, isError) {
