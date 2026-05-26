@@ -365,6 +365,16 @@ body > * {
   color: #17324d;
 }
 
+.landing-header-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing-header-title a:hover,
+.landing-header-title a:focus-visible {
+  text-decoration: underline;
+}
+
 .landing-header-register {
   position: fixed;
   top: 1rem;

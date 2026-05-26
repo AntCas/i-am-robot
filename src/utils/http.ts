@@ -48,8 +48,8 @@ export function getStaticAssetPath(pathname: string): string | null {
 		return "/index.html";
 	}
 
-	if (pathname === `${APP_BASE_PATH}/register` || pathname === `${APP_BASE_PATH}/register/`) {
-		return "/register/index.html";
+	if (pathname === `${APP_BASE_PATH}/quickstart` || pathname === `${APP_BASE_PATH}/quickstart/`) {
+		return "/quickstart/index.html";
 	}
 
 	if (pathname === `${APP_BASE_PATH}/embed` || pathname === `${APP_BASE_PATH}/embed/`) {

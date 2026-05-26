@@ -190,9 +190,9 @@ test("embed page path resolves to the hosted iframe asset", () => {
 	assert.equal(getStaticAssetPath("/im-a-robot/embed/"), "/embed/index.html");
 });
 
-test("register page path resolves to the hosted registration asset", () => {
-	assert.equal(getStaticAssetPath("/im-a-robot/register"), "/register/index.html");
-	assert.equal(getStaticAssetPath("/im-a-robot/register/"), "/register/index.html");
+test("quickstart page path resolves to the hosted quickstart asset", () => {
+	assert.equal(getStaticAssetPath("/im-a-robot/quickstart"), "/quickstart/index.html");
+	assert.equal(getStaticAssetPath("/im-a-robot/quickstart/"), "/quickstart/index.html");
 });
 
 test("site registration stores a new site config and returns embed code", async () => {
