@@ -98,6 +98,7 @@ body > * {
 .register-page {
   display: grid;
   gap: 1.5rem;
+  padding-top: 1.25rem;
 }
 
 .register-lead {
