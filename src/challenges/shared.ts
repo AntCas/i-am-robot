@@ -1,6 +1,6 @@
 import type { ChallengeScoreContext, ChallengeScoreResult } from "../types.ts";
 
-export const MINIMUM_CHALLENGE_TIME_LIMIT_MS = 60_000;
+export const MINIMUM_CHALLENGE_TIME_LIMIT_MS = 20_000;
 
 export function resolveChallengeTimeLimitMs(timeLimitMs: number): number {
 	return Math.max(timeLimitMs, MINIMUM_CHALLENGE_TIME_LIMIT_MS);
