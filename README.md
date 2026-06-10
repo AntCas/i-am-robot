@@ -144,9 +144,8 @@ pnpm wrangler login
 [wrangler.toml](wrangler.toml) should contain:
 
 - the real KV namespace IDs
-- both routes:
-  - `castrio.me/im-a-robot`
-  - `castrio.me/im-a-robot/*`
+- the Worker route:
+  - `castrio.me/im-a-robot*`
 - the static asset directory:
   - `./site`
 
@@ -186,15 +185,15 @@ In the Cloudflare dashboard:
 2. Open the `i-am-robot` Worker
 3. Go to `Settings`
 4. Open `Domains & Routes`
-5. Confirm both routes are attached:
-   - `castrio.me/im-a-robot`
-   - `castrio.me/im-a-robot/*`
+5. Confirm this route is attached:
+   - `castrio.me/im-a-robot*`
 
 ### 7. Test production
 
 Open:
 
 - [https://castrio.me/im-a-robot](https://castrio.me/im-a-robot)
+- [https://castrio.me/im-a-robot?t=i](https://castrio.me/im-a-robot?t=i)
 
 Then verify:
 
