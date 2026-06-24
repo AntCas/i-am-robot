@@ -1,4 +1,4 @@
-import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
+import { createBarb, createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
 import type {
 	ChallengeDefinition,
 	ChallengeStartContext,
@@ -83,15 +83,17 @@ export const spotTheTicksChallenge = {
 			return createFailedScore("invalid_answer");
 		}
 
-		if (submittedPoints.length !== gradingKey.expectedPoints.length) {
-			return createFailedScore("incorrect_answer");
-		}
-
 		if (matchesEveryTargetExactlyOnce(submittedPoints, gradingKey.expectedPoints, gradingKey.hitRadius)) {
 			return createSuccessfulScore();
 		}
 
-		return createFailedScore("incorrect_answer");
+		const pointMistakes = getPointMistakes(submittedPoints, gradingKey.expectedPoints, gradingKey.hitRadius);
+		return {
+			...createFailedScore("incorrect_answer"),
+			barb: createBarb(
+				`You missed ${pointMistakes.missedTargets} ${pluralize("tick", pointMistakes.missedTargets)} and made ${pointMistakes.whiffs} total ${pluralize("whiff", pointMistakes.whiffs)}`,
+			),
+		};
 	},
 } satisfies ChallengeDefinition<
 	"spot_the_ticks",
@@ -162,6 +164,39 @@ function matchesEveryTargetExactlyOnce(
 	}
 
 	return matchedTargetIndexes.size === expectedPoints.length;
+}
+
+function getPointMistakes(
+	submittedPoints: PointCoordinate[],
+	expectedPoints: PointCoordinate[],
+	hitRadius: number,
+): { missedTargets: number; whiffs: number } {
+	const matchedTargetIndexes = new Set<number>();
+	let whiffs = 0;
+
+	for (const point of submittedPoints) {
+		const targetIndex = expectedPoints.findIndex(
+			(target, index) => !matchedTargetIndexes.has(index) && getDistance(point, target) <= hitRadius,
+		);
+
+		if (targetIndex === -1) {
+			if (expectedPoints.every((target) => getDistance(point, target) > hitRadius)) {
+				whiffs += 1;
+			}
+			continue;
+		}
+
+		matchedTargetIndexes.add(targetIndex);
+	}
+
+	return {
+		missedTargets: expectedPoints.length - matchedTargetIndexes.size,
+		whiffs,
+	};
+}
+
+function pluralize(word: string, count: number): string {
+	return count === 1 ? word : `${word}s`;
 }
 
 function isFinitePoint(point: PointCoordinate): boolean {

@@ -226,6 +226,11 @@ test("quickstart page path resolves to the hosted quickstart asset", () => {
 	assert.equal(getStaticAssetPath("/im-a-robot/quickstart/"), "/quickstart/index.html");
 });
 
+test("challenge bank page path resolves to the hosted challenge bank asset", () => {
+	assert.equal(getStaticAssetPath("/im-a-robot/challenge-bank"), "/challenge-bank/index.html");
+	assert.equal(getStaticAssetPath("/im-a-robot/challenge-bank/"), "/challenge-bank/index.html");
+});
+
 test("site registration stores a new site config and returns embed code", async () => {
 	const env = createEnv();
 	const response = await handleRegisterSiteRequest(
@@ -539,6 +544,47 @@ test("demo challenge start targets a named challenge and submit never issues a t
 	assert.equal(submitData.expiresAt, undefined);
 	assert.equal(submitData.verification.successfulChallenges, 1);
 	assert.equal(submitData.verification.remainingChallenges, 0);
+});
+
+test("demo challenge submit can include a challenge barb on failure", async () => {
+	const env = createEnv();
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+			demoChallenge: "odd_color_pixel",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+	if (!challengeSession || challengeSession.promptPayload.kind !== "pixel_grid") {
+		throw new Error("Expected odd color pixel session");
+	}
+
+	const prompt = challengeSession.promptPayload;
+	const wrongPoint = {
+		row: prompt.target.row,
+		column: (prompt.target.column + 1) % prompt.columns,
+	};
+	const submitResponse = await handleChallengeSubmitRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+			sessionId: startData.sessionId,
+			answer: { point: wrongPoint },
+		}),
+		env as never,
+	);
+
+	assert.equal(submitResponse.status, 200);
+	const submitData = await readJson(submitResponse);
+	assert.equal(submitData.success, false);
+	assert.equal(submitData.reason, "incorrect_answer");
+	assert.match(submitData.barb, new RegExp(`^That's ${prompt.baseColor} not ${prompt.targetColor}, .+\\.$`));
+	assert.equal(submitData.resultToken, undefined);
+	assert.equal(submitData.expiresAt, undefined);
 });
 
 test("demo challenge start rejects unknown challenge names", async () => {

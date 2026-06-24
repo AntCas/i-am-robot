@@ -107,7 +107,10 @@ test("spot the ticks rejects missed targets, duplicate target clicks, extra miss
 			answer: { points: [{ x: 100, y: 100 }] },
 		}),
 	);
-	assert.deepEqual(missedTarget, { score: 0, verdict: "failed", reason: "incorrect_answer" });
+	assert.equal(missedTarget.score, 0);
+	assert.equal(missedTarget.verdict, "failed");
+	assert.equal(missedTarget.reason, "incorrect_answer");
+	assert.match(missedTarget.barb ?? "", /^You missed 1 tick and made 0 total whiffs, .+\.$/);
 
 	const duplicateTarget = await spotTheTicksChallenge.score(
 		createScoreContext({
@@ -120,7 +123,10 @@ test("spot the ticks rejects missed targets, duplicate target clicks, extra miss
 			},
 		}),
 	);
-	assert.deepEqual(duplicateTarget, { score: 0, verdict: "failed", reason: "incorrect_answer" });
+	assert.equal(duplicateTarget.score, 0);
+	assert.equal(duplicateTarget.verdict, "failed");
+	assert.equal(duplicateTarget.reason, "incorrect_answer");
+	assert.match(duplicateTarget.barb ?? "", /^You missed 1 tick and made 0 total whiffs, .+\.$/);
 
 	const extraMiss = await spotTheTicksChallenge.score(
 		createScoreContext({
@@ -134,7 +140,10 @@ test("spot the ticks rejects missed targets, duplicate target clicks, extra miss
 			},
 		}),
 	);
-	assert.deepEqual(extraMiss, { score: 0, verdict: "failed", reason: "incorrect_answer" });
+	assert.equal(extraMiss.score, 0);
+	assert.equal(extraMiss.verdict, "failed");
+	assert.equal(extraMiss.reason, "incorrect_answer");
+	assert.match(extraMiss.barb ?? "", /^You missed 0 ticks and made 1 total whiff, .+\.$/);
 
 	const lateSubmission = await spotTheTicksChallenge.score(
 		createScoreContext({

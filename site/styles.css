@@ -375,19 +375,84 @@ body > * {
   text-decoration: underline;
 }
 
-.landing-header-register {
+.landing-header-links {
   position: fixed;
   top: 1rem;
   right: 1rem;
   z-index: 2;
+  display: grid;
+  gap: 0.25rem;
+  justify-items: end;
+}
+
+.landing-header-link {
   color: var(--accent-2);
   font: 400 0.95rem/1.2 "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
   text-decoration: underline;
 }
 
-.landing-header-register:hover,
-.landing-header-register:focus-visible {
+.landing-header-link:hover,
+.landing-header-link:focus-visible {
   color: #42576d;
+}
+
+.challenge-bank-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.challenge-bank-header {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.challenge-bank-title {
+  margin: 0;
+  color: #17324d;
+  font-size: clamp(2rem, 6vw, 3.8rem);
+  line-height: 0.95;
+}
+
+.challenge-bank-lead {
+  max-width: 38rem;
+  margin: 0;
+  color: #42576d;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.challenge-bank-list {
+  display: grid;
+  gap: 0.65rem;
+  width: min(100%, 40rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.challenge-bank-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d6dee8;
+  border-radius: var(--widget-challenge-radius);
+  background: #fff;
+  color: #17324d;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.challenge-bank-link:hover,
+.challenge-bank-link:focus-visible {
+  border-color: #8bb8f1;
+  color: var(--accent-2);
+}
+
+.challenge-bank-link::after {
+  content: "demo";
+  color: #5f7287;
+  font-weight: 500;
 }
 
 .landing-footer a {
@@ -989,6 +1054,12 @@ body > * {
   background-size: contain;
 }
 
+.point-item-bad-missed {
+  z-index: 4;
+  animation: missed-tick-barb 1.9s ease-in-out both;
+  filter: drop-shadow(0 0 7px rgba(220, 38, 38, 0.9)) saturate(1.8);
+}
+
 .point-item-tick {
   border: 2px solid #191919;
   border-radius: 50% 50% 48% 48%;
@@ -1046,6 +1117,90 @@ body > * {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
 }
 
+.selected-point-marker-whiff {
+  border-color: #dc2626;
+  animation: whiff-marker-barb 1.25s ease-in-out both;
+}
+
+.confused-face-marker {
+  position: absolute;
+  z-index: 5;
+  display: block;
+  pointer-events: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  animation: confused-face-pop 1.35s ease-out both;
+}
+
+@keyframes missed-tick-barb {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(1);
+  }
+
+  14% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(-1px);
+    background-color: rgba(220, 38, 38, 0.76);
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.46);
+  }
+
+  28% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(1px);
+    background-color: rgba(220, 38, 38, 0.72);
+  }
+
+  42% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(-1px);
+    box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.38);
+  }
+
+  56% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(1px);
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+
+  70% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(-1px);
+    background-color: rgba(220, 38, 38, 0.82);
+  }
+
+  86% {
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10);
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.42);
+  }
+}
+
+@keyframes whiff-marker-barb {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  45% {
+    transform: translate(-50%, -50%) scale(1.7);
+    box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.2);
+  }
+}
+
+@keyframes confused-face-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.25) rotate(-10deg);
+  }
+
+  18%,
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -145%) scale(1.15) rotate(5deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -180%) scale(0.82) rotate(0deg);
+  }
+}
+
 .pixel-grid {
   display: grid;
   grid-template-columns: repeat(var(--pixel-grid-columns), minmax(0, 1fr));
@@ -1055,7 +1210,8 @@ body > * {
   gap: 1px;
 }
 
-.target-color-token {
+.target-color-token,
+.barb-color-token {
   padding: 0.08rem 0.24rem;
   border: 1px solid currentColor;
   border-radius: 4px;
@@ -1273,7 +1429,7 @@ body > * {
     height: 24px;
   }
 
-  .landing-header-register {
+  .landing-header-links {
     top: 0.75rem;
     right: 0.75rem;
   }

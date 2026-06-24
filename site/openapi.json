@@ -1210,6 +1210,10 @@
           "reason": {
             "type": "string"
           },
+          "barb": {
+            "type": "string",
+            "description": "Optional challenge-specific failure barb tagged with a reusable human insult."
+          },
           "completedAt": {
             "type": "string",
             "format": "date-time"

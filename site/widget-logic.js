@@ -458,13 +458,15 @@ function createPointClickItemMarkup(item, prompt) {
   return `
     <span
       class="${className}"
+      data-item-id="${escapeHtml(item.id)}"
       data-item-kind="${escapeHtml(item.kind)}"
       style="
         left: ${((item.x / prompt.width) * 100).toFixed(3)}%;
         top: ${((item.y / prompt.height) * 100).toFixed(3)}%;
         width: ${escapeHtml(item.radius * 2)}px;
         height: ${escapeHtml(item.radius * 2)}px;
-        transform: translate(-50%, -50%) rotate(${escapeHtml(item.rotationDegrees ?? 0)}deg);
+        --point-item-rotation: ${escapeHtml(item.rotationDegrees ?? 0)}deg;
+        transform: translate(-50%, -50%) rotate(var(--point-item-rotation));
         ${imageStyle}
       "
       aria-hidden="true"

@@ -52,17 +52,21 @@ test("odd color pixel score requires the exact coordinate before the deadline", 
 		{ score: 1, verdict: "robot" },
 	);
 
-	assert.deepEqual(
-		await oddColorPixelChallenge.score({
-			...baseContext,
-			answer: {
-				point: {
-					row: challenge.gradingKey.expectedPoint.row,
-					column: challenge.gradingKey.expectedPoint.column + 1,
-				},
+	const wrongAnswerResult = await oddColorPixelChallenge.score({
+		...baseContext,
+		answer: {
+			point: {
+				row: challenge.gradingKey.expectedPoint.row,
+				column: (challenge.gradingKey.expectedPoint.column + 1) % challenge.promptPayload.columns,
 			},
-		}),
-		{ score: 0, verdict: "failed", reason: "incorrect_answer" },
+		},
+	});
+	assert.equal(wrongAnswerResult.score, 0);
+	assert.equal(wrongAnswerResult.verdict, "failed");
+	assert.equal(wrongAnswerResult.reason, "incorrect_answer");
+	assert.match(
+		wrongAnswerResult.barb ?? "",
+		new RegExp(`^That's ${challenge.promptPayload.baseColor} not ${challenge.promptPayload.targetColor}, .+\\.$`),
 	);
 
 	assert.deepEqual(

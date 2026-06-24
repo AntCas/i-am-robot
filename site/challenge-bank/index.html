@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Challenge bank - I'm a robot</title>
+  <link rel="icon" type="image/svg+xml" href="/im-a-robot/favicon.svg">
+  <link rel="stylesheet" href="/im-a-robot/styles.css">
+</head>
+<body>
+  <main class="copy-page challenge-bank-page">
+    <header class="challenge-bank-header">
+      <p class="muted"><a href="/im-a-robot/">Back to robot check</a></p>
+      <h1 class="challenge-bank-title">Challenge bank</h1>
+      <p class="challenge-bank-lead">Open any challenge directly in demo mode for local debugging.</p>
+    </header>
+
+    <ul class="challenge-bank-list" data-role="challenge-bank-list">
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=timed_math">timed_math</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=randomness_audit">randomness_audit</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=code_error">code_error</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=chess_puzzle">chess_puzzle</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=hash_value">hash_value</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=massive_word_search">massive_word_search</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=spot_the_ticks">spot_the_ticks</a></li>
+      <li><a class="challenge-bank-link" href="/im-a-robot/?challenge=odd_color_pixel">odd_color_pixel</a></li>
+    </ul>
+
+    <p class="muted" data-role="challenge-bank-status">Loading current challenge catalog...</p>
+  </main>
+
+  <script type="module" src="/im-a-robot/challenge-bank.js"></script>
+</body>
+</html>

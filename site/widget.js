@@ -23,6 +23,7 @@ const PAGE_COUNTDOWN_DARKNESS_VAR = "--page-countdown-darkness";
 const PAGE_COUNTDOWN_VIGNETTE_VAR = "--page-countdown-vignette";
 const MAX_PAGE_COUNTDOWN_DARKNESS = 0.72;
 const MAX_PAGE_COUNTDOWN_VIGNETTE = 0.78;
+const BARB_ANIMATION_DURATION_MS = 2200;
 
 class RobotCheckWidget extends HTMLElement {
   connectedCallback() {
@@ -166,7 +167,7 @@ class RobotCheckWidget extends HTMLElement {
 
       const responseData = await response.json();
       if (!responseData.success) {
-        this.handleFailedVerification(responseData.reason);
+        await this.handleFailedVerification(responseData);
         return;
       }
 
@@ -249,12 +250,27 @@ class RobotCheckWidget extends HTMLElement {
     }
   }
 
-  handleFailedVerification(reason) {
+  async handleFailedVerification(responseData) {
     clearStoredVerification();
     this.state.attemptFailures += 1;
     this.checkbox.checked = false;
-    this.showFailureState(getFailureMessage(reason), true);
+    const message = responseData.barb || getFailureMessage(responseData.reason);
+    this.showBarbMessage(message);
+    await this.playChallengeBarb(responseData);
+    this.showFailureState(message, true);
     this.resetVerificationFlow({ preserveStatus: true });
+  }
+
+  async playChallengeBarb(responseData) {
+    if (!responseData.barb || !this.state.challengePrompt) {
+      return;
+    }
+
+    if (this.state.challengePrompt.kind === "point_click") {
+      renderPointClickBarb(this.challengeContainer, this.state.challengePrompt);
+    }
+
+    await waitFor(BARB_ANIMATION_DURATION_MS);
   }
 
   showFailureState(message, shouldShowAttemptsRemaining) {
@@ -307,6 +323,12 @@ class RobotCheckWidget extends HTMLElement {
 
   showErrorMessage(message) {
     this.resultElement.textContent = message;
+    this.resultElement.classList.remove("hidden", "widget-result-success");
+    this.resultElement.classList.add("widget-result-error");
+  }
+
+  showBarbMessage(message) {
+    this.resultElement.replaceChildren(createBarbMessageFragment(message));
     this.resultElement.classList.remove("hidden", "widget-result-success");
     this.resultElement.classList.add("widget-result-error");
   }
@@ -664,11 +686,110 @@ function renderSelectedPointMarkers(pointSurface, points, prompt) {
   for (const point of points) {
     const marker = document.createElement("span");
     marker.className = "selected-point-marker";
+    marker.dataset.x = String(point.x);
+    marker.dataset.y = String(point.y);
     marker.style.left = `${(point.x / prompt.width) * 100}%`;
     marker.style.top = `${(point.y / prompt.height) * 100}%`;
     marker.setAttribute("aria-hidden", "true");
     pointSurface.append(marker);
   }
+}
+
+function renderPointClickBarb(container, prompt) {
+  const pointSurface = container.querySelector('[data-role="point-click-surface"]');
+  const pointsInput = container.querySelector("#widget-coordinate-points");
+  if (!pointSurface || !pointsInput) {
+    return;
+  }
+
+  const selectedPoints = readPointInput(pointsInput);
+  const hitRadius = 24;
+  const selectedTargetIndexes = new Set();
+
+  for (const point of selectedPoints) {
+    const targetIndex = prompt.items.findIndex(
+      (item, index) =>
+        item.kind === "tick" &&
+        !selectedTargetIndexes.has(index) &&
+        getPointDistance(point, item) <= hitRadius,
+    );
+
+    if (targetIndex >= 0) {
+      selectedTargetIndexes.add(targetIndex);
+    }
+  }
+
+  prompt.items.forEach((item, index) => {
+    if (item.kind !== "tick" || selectedTargetIndexes.has(index)) {
+      return;
+    }
+
+    const missedTick = pointSurface.querySelector(`[data-item-id="${cssAttributeEscape(item.id)}"]`);
+    missedTick?.classList.add("point-item-bad-missed");
+  });
+
+  for (const point of selectedPoints) {
+    const isWhiff = prompt.items
+      .filter((item) => item.kind === "tick")
+      .every((item) => getPointDistance(point, item) > hitRadius);
+
+    if (isWhiff) {
+      const marker = pointSurface.querySelector(
+        `.selected-point-marker[data-x="${point.x}"][data-y="${point.y}"]`,
+      );
+      marker?.classList.add("selected-point-marker-whiff");
+      spawnConfusedFace(pointSurface, point, prompt);
+    }
+  }
+}
+
+function spawnConfusedFace(pointSurface, point, prompt) {
+  const face = document.createElement("span");
+  face.className = "confused-face-marker";
+  face.textContent = "🤨";
+  face.style.left = `${(point.x / prompt.width) * 100}%`;
+  face.style.top = `${(point.y / prompt.height) * 100}%`;
+  face.setAttribute("aria-hidden", "true");
+  pointSurface.append(face);
+}
+
+function getPointDistance(firstPoint, secondPoint) {
+  const deltaX = firstPoint.x - secondPoint.x;
+  const deltaY = firstPoint.y - secondPoint.y;
+  return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+}
+
+function createBarbMessageFragment(message) {
+  const fragment = document.createDocumentFragment();
+  const hexPattern = /#[0-9A-Fa-f]{6}/g;
+  let lastIndex = 0;
+
+  for (const match of message.matchAll(hexPattern)) {
+    if (match.index > lastIndex) {
+      fragment.append(document.createTextNode(message.slice(lastIndex, match.index)));
+    }
+
+    const token = document.createElement("code");
+    token.className = "barb-color-token";
+    token.style.color = match[0];
+    token.textContent = match[0].toUpperCase();
+    fragment.append(token);
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < message.length) {
+    fragment.append(document.createTextNode(message.slice(lastIndex)));
+  }
+
+  return fragment;
+}
+
+function cssAttributeEscape(value) {
+  return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function waitFor(durationMs) {
+  return new Promise((resolve) => window.setTimeout(resolve, durationMs));
 }
 
 function readGridPointFromDataset(dataset) {

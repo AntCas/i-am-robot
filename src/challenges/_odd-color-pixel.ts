@@ -1,4 +1,4 @@
-import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
+import { createBarb, createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
 import type {
 	ChallengeDefinition,
 	ChallengeStartContext,
@@ -87,7 +87,10 @@ export const oddColorPixelChallenge = {
 			return createSuccessfulScore();
 		}
 
-		return createFailedScore("incorrect_answer");
+		return {
+			...createFailedScore("incorrect_answer"),
+			barb: createOddColorPixelBarb(context.promptPayload, submittedPoint),
+		};
 	},
 } satisfies ChallengeDefinition<
 	"odd_color_pixel",
@@ -105,6 +108,32 @@ function createSubtleTargetColor(baseColor: string): string {
 		green: clampColorChannel(baseRgb.green + offset.green),
 		blue: clampColorChannel(baseRgb.blue + offset.blue),
 	});
+}
+
+function createOddColorPixelBarb(prompt: PixelGridChallengePrompt, submittedPoint: GridPointChallengeAnswer["point"] | undefined): string {
+	const submittedColor = getSubmittedPixelColor(prompt, submittedPoint);
+	return createBarb(`That's ${submittedColor} not ${prompt.targetColor}`);
+}
+
+function getSubmittedPixelColor(prompt: PixelGridChallengePrompt, submittedPoint: GridPointChallengeAnswer["point"] | undefined): string {
+	if (!Number.isInteger(submittedPoint?.row) || !Number.isInteger(submittedPoint?.column)) {
+		return "not even a pixel";
+	}
+
+	if (
+		submittedPoint.row < 0 ||
+		submittedPoint.row >= prompt.rows ||
+		submittedPoint.column < 0 ||
+		submittedPoint.column >= prompt.columns
+	) {
+		return "outside the grid";
+	}
+
+	if (submittedPoint.row === prompt.target.row && submittedPoint.column === prompt.target.column) {
+		return prompt.targetColor;
+	}
+
+	return prompt.baseColor;
 }
 
 function parseHexColor(color: string): { red: number; green: number; blue: number } {

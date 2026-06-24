@@ -269,7 +269,9 @@ test("getChallengeMarkup renders point-click and pixel-grid prompts", () => {
 	assert.match(pointMarkup, /robot-only-challenge-copy/);
 	assert.match(pointMarkup, /Avoid seeds\./);
 	assert.match(pointMarkup, /point-item-tick/);
+	assert.match(pointMarkup, /data-item-id="tick_1"/);
 	assert.match(pointMarkup, /tick\.svg/);
+	assert.match(pointMarkup, /--point-item-rotation: 18deg/);
 	assert.match(pointMarkup, /point-item-seed/);
 	assert.match(pixelMarkup, /pixel-grid/);
 	assert.match(pixelMarkup, /robot-only-challenge-copy/);

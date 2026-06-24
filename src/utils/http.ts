@@ -52,6 +52,10 @@ export function getStaticAssetPath(pathname: string): string | null {
 		return "/quickstart/index.html";
 	}
 
+	if (pathname === `${APP_BASE_PATH}/challenge-bank` || pathname === `${APP_BASE_PATH}/challenge-bank/`) {
+		return "/challenge-bank/index.html";
+	}
+
 	if (pathname === `${APP_BASE_PATH}/embed` || pathname === `${APP_BASE_PATH}/embed/`) {
 		return "/embed/index.html";
 	}

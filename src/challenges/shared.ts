@@ -1,6 +1,7 @@
 import type { ChallengeScoreContext, ChallengeScoreResult } from "../types.ts";
 
 export const MINIMUM_CHALLENGE_TIME_LIMIT_MS = 20_000;
+const HUMAN_INSULTS = ["likely meatbag", "warm little typo machine", "carbon-based misclicker", "suspiciously mammalian"];
 
 export function resolveChallengeTimeLimitMs(timeLimitMs: number): number {
 	return Math.max(timeLimitMs, MINIMUM_CHALLENGE_TIME_LIMIT_MS);
@@ -16,6 +17,10 @@ export function createSuccessfulScore(): ChallengeScoreResult {
 
 export function createFailedScore(reason: string): ChallengeScoreResult {
 	return { score: 0, verdict: "failed", reason };
+}
+
+export function createBarb(message: string): string {
+	return `${message}, ${HUMAN_INSULTS[getRandomInteger(0, HUMAN_INSULTS.length - 1)]}.`;
 }
 
 export function getRandomInteger(minimum: number, maximum: number): number {

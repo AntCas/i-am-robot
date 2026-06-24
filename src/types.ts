@@ -364,6 +364,7 @@ export interface ChallengeScoreResult {
 	score: number;
 	verdict: Verdict;
 	reason?: string;
+	barb?: string;
 }
 
 export interface ChallengeDefinition<
