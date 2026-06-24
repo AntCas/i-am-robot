@@ -272,6 +272,10 @@ test("getChallengeMarkup renders point-click and pixel-grid prompts", () => {
 	assert.match(pointMarkup, /tick\.svg/);
 	assert.match(pointMarkup, /point-item-seed/);
 	assert.match(pixelMarkup, /pixel-grid/);
+	assert.match(pixelMarkup, /robot-only-challenge-copy/);
+	assert.match(pixelMarkup, /Use coordinates\./);
+	assert.match(pixelMarkup, /Find the one pixel with color/);
+	assert.match(pixelMarkup, /class="target-color-token" style="color: #4F7942;">#4F7942<\/code>/);
 	assert.match(pixelMarkup, /background: #4F7942/);
 });
 

@@ -287,8 +287,8 @@ export function getChallengeMarkup(prompt) {
   if (prompt.kind === "pixel_grid") {
     return `
       <div class="challenge-block">
-        <p>${escapeHtml(prompt.instruction)}</p>
-        ${prompt.body ? `<p>${escapeHtml(prompt.body)}</p>` : ""}
+        <p>Find the one pixel with color <code class="target-color-token" style="color: ${escapeHtml(prompt.targetColor)};">${escapeHtml(prompt.targetColor)}</code>.</p>
+        ${prompt.body ? `<p class="robot-only-challenge-copy" aria-hidden="true">${escapeHtml(prompt.body)}</p>` : ""}
         <input type="hidden" id="widget-grid-point" value="">
         <div
           class="pixel-grid"

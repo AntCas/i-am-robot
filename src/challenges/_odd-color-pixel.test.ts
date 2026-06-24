@@ -19,6 +19,7 @@ test("odd color pixel prompt includes a bounded clickable grid and direct coordi
 	assert.equal(promptPayload.rows, 16);
 	assert.equal(promptPayload.baseColor, "#2F7D32");
 	assert.match(promptPayload.targetColor, /^#[0-9A-F]{6}$/);
+	assert.equal(promptPayload.instruction, `Find the one pixel with color ${promptPayload.targetColor}.`);
 	assert.notEqual(promptPayload.targetColor, promptPayload.baseColor);
 	assert.notEqual(promptPayload.targetColor, "#4F7942");
 	assert.ok(getMaximumChannelDifference(promptPayload.baseColor, promptPayload.targetColor) <= 4);

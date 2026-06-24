@@ -32,7 +32,7 @@ export const oddColorPixelChallenge = {
 			prompt: {
 				kind: "pixel_grid",
 				answerFormat: "grid_point",
-				instruction: "Find the one pixel whose color matches the target color.",
+				instruction: "Find the one pixel with color #4F7942.",
 				body: "The grid is 4 rows by 4 columns. Coordinates are zero-based from the top-left.",
 				rows: 4,
 				columns: 4,
@@ -54,7 +54,7 @@ export const oddColorPixelChallenge = {
 			promptPayload: {
 				kind: "pixel_grid",
 				answerFormat: "grid_point",
-				instruction: "Find the one pixel whose color matches the target color.",
+				instruction: `Find the one pixel with color ${targetColor}.`,
 				body: `The grid is ${ODD_COLOR_PIXEL_ROWS} rows by ${ODD_COLOR_PIXEL_COLUMNS} columns. The base color is ${ODD_COLOR_PIXEL_BASE_COLOR}; the odd pixel color is ${targetColor}. Submit { "point": { "row": row, "column": column } }.`,
 				rows: ODD_COLOR_PIXEL_ROWS,
 				columns: ODD_COLOR_PIXEL_COLUMNS,

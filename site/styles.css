@@ -1055,6 +1055,14 @@ body > * {
   gap: 1px;
 }
 
+.target-color-token {
+  padding: 0.08rem 0.24rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: #fff;
+  font-weight: 700;
+}
+
 .pixel-cell {
   aspect-ratio: 1;
   min-width: 0;
