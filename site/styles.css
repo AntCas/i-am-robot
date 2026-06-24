@@ -858,12 +858,215 @@ body > * {
   gap: 0.35rem;
 }
 
-.challenge-block input[type="text"] {
+.challenge-block input[type="text"],
+.challenge-block textarea {
   width: 100%;
   padding: 0.75rem 0.9rem;
   border: 1px solid #c9ced6;
   border-radius: var(--widget-control-radius);
   font: inherit;
+}
+
+.challenge-block textarea {
+  resize: vertical;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.82rem;
+}
+
+.word-search-layout {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.word-search-words {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.word-search-word {
+  padding: 0.22rem 0.42rem;
+  border: 1px solid #c9ced6;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.78rem;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.word-search-word.is-found {
+  border-color: #86d19a;
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.word-search-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--word-search-columns), minmax(0, 1fr));
+  width: min(100%, 360px);
+  border: 1px solid #d9dee7;
+  border-radius: var(--widget-challenge-radius);
+  overflow: hidden;
+  background: #fff;
+}
+
+.word-search-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid #edf1f6;
+  border-bottom: 1px solid #edf1f6;
+  background: #fff;
+  color: #334155;
+  font: 700 0.72rem/1 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  letter-spacing: 0;
+  cursor: crosshair;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.word-search-cell:hover,
+.word-search-cell.is-pending {
+  background: #dbeafe;
+  color: #174ea6;
+}
+
+.word-search-cell.is-found {
+  background: #bbf7d0;
+  color: #14532d;
+}
+
+.word-search-answer-form {
+  display: none;
+}
+
+.robot-only-challenge-copy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.point-click-surface {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--point-surface-width) / var(--point-surface-height);
+  min-height: 15rem;
+  border: 1px solid #c9ced6;
+  border-radius: var(--widget-challenge-radius);
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    #f6fbf5;
+  background-size: 32px 32px;
+  cursor: crosshair;
+}
+
+.point-click-surface-image {
+  background-color: #f4ead2;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.point-item,
+.selected-point-marker {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.point-item-image {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.point-item-tick {
+  border: 2px solid #191919;
+  border-radius: 50% 50% 48% 48%;
+  background:
+    linear-gradient(110deg, transparent 46%, #191919 47% 53%, transparent 54%),
+    #7b4b2a;
+}
+
+.point-item-tick::before,
+.point-item-tick::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 72%;
+  height: 2px;
+  background: #191919;
+  transform-origin: left center;
+}
+
+.point-item-tick::before {
+  top: 32%;
+  transform: rotate(-34deg);
+}
+
+.point-item-tick::after {
+  top: 66%;
+  transform: rotate(34deg);
+}
+
+.point-item-seed {
+  border-radius: 50% 9px 50% 9px;
+  background: #8a6b39;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.28);
+}
+
+.point-item-image.point-item-tick,
+.point-item-image.point-item-seed {
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.point-item-image.point-item-tick::before,
+.point-item-image.point-item-tick::after {
+  display: none;
+}
+
+.selected-point-marker {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #1a73e8;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+}
+
+.pixel-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--pixel-grid-columns), minmax(0, 1fr));
+  width: min(100%, 360px);
+  border: 1px solid #c9ced6;
+  background: #c9ced6;
+  gap: 1px;
+}
+
+.pixel-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  cursor: crosshair;
+}
+
+.pixel-cell.is-selected {
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
+  z-index: 1;
 }
 
 .chess-puzzle-layout {

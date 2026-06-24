@@ -19,6 +19,7 @@ export function createInitialWidgetState(config) {
     verified: false,
     resultToken: null,
     resultTokenExpiresAt: null,
+    isDemo: false,
   };
 }
 
@@ -102,26 +103,35 @@ export function getWidgetMarkup(config) {
   `;
 }
 
-export function resolveWidgetConfig(element, pathname) {
+export function resolveWidgetConfig(element, pathname, search = "") {
   const appBasePath = normalizeAppBasePath(element.getAttribute("app-base-path")) ?? getWidgetAppBasePath(pathname);
+  const searchParams = new URLSearchParams(search);
+  const demoChallenge = normalizeChallengeName(element.getAttribute("demo-challenge")) ?? normalizeChallengeName(searchParams.get("challenge"));
   return {
     appBasePath,
     siteKey: element.getAttribute("site-key")?.trim() || DEFAULT_SITE_KEY,
     hostname: normalizeHostname(element.getAttribute("hostname")),
+    demoChallenge,
     docsPath: normalizeRelativePath(element.getAttribute("docs-path")) ?? `${appBasePath}/docs/`,
     privacyPath: normalizeRelativePath(element.getAttribute("privacy-path")) ?? `${appBasePath}/privacy`,
     termsPath: normalizeRelativePath(element.getAttribute("terms-path")) ?? `${appBasePath}/terms`,
   };
 }
 
-export function createStartChallengeRequestBody(siteKey, hostname, verificationSessionId, attemptNumber = 1) {
-  return {
+export function createStartChallengeRequestBody(siteKey, hostname, verificationSessionId, attemptNumber = 1, demoChallenge = null) {
+  const body = {
     siteKey,
     hostname,
     mode: "widget",
     verificationSessionId,
     attemptNumber,
   };
+
+  if (demoChallenge) {
+    body.demoChallenge = demoChallenge;
+  }
+
+  return body;
 }
 
 export function createSubmitChallengeRequestBody(sessionId, answer) {
@@ -208,6 +218,104 @@ export function getChallengeMarkup(prompt) {
     `;
   }
 
+  if (prompt.kind === "word_search") {
+    const columnCount = prompt.grid[0]?.length ?? 0;
+    return `
+      <div class="challenge-block">
+        <p>${escapeHtml(prompt.instruction)}</p>
+        ${prompt.body ? `<p class="robot-only-challenge-copy" aria-hidden="true">${escapeHtml(prompt.body)}</p>` : ""}
+        <div class="word-search-layout">
+          <div class="word-search-words" data-role="word-search-words" aria-label="Words to find">
+            ${prompt.words
+              .map((word) => `<code class="word-search-word" data-word="${escapeHtml(word)}">${escapeHtml(word)}</code>`)
+              .join("")}
+          </div>
+          <div
+            class="word-search-grid"
+            data-role="word-search-grid"
+            style="--word-search-columns: ${escapeHtml(columnCount)};"
+            aria-label="Word search grid"
+          >
+            ${prompt.grid
+              .flatMap((rowValue, row) =>
+                Array.from(rowValue, (letter, column) => `
+                  <button
+                    type="button"
+                    class="word-search-cell"
+                    data-row="${escapeHtml(row)}"
+                    data-column="${escapeHtml(column)}"
+                    aria-label="row ${escapeHtml(row)}, column ${escapeHtml(column)}, letter ${escapeHtml(letter)}"
+                  >${escapeHtml(letter)}</button>
+                `),
+              )
+              .join("")}
+          </div>
+          <p class="muted" data-role="word-search-selection-status">0/${escapeHtml(prompt.words.length)} found</p>
+          <form class="word-search-answer-form" aria-hidden="true">
+            <input type="hidden" id="widget-word-locations" name="locations" value="[]">
+          </form>
+        </div>
+      </div>
+    `;
+  }
+
+  if (prompt.kind === "point_click") {
+    return `
+      <div class="challenge-block">
+        <p>${escapeHtml(prompt.instruction)}</p>
+        ${prompt.body ? `<p class="robot-only-challenge-copy" aria-hidden="true">${escapeHtml(prompt.body)}</p>` : ""}
+        <input type="hidden" id="widget-coordinate-points" value="[]">
+        <div
+          class="point-click-surface${prompt.backgroundImageUrl ? " point-click-surface-image" : ""}"
+          data-role="point-click-surface"
+          style="
+            --point-surface-width: ${escapeHtml(prompt.width)};
+            --point-surface-height: ${escapeHtml(prompt.height)};
+            ${prompt.backgroundImageUrl ? `background-image: url('${escapeHtml(prompt.backgroundImageUrl)}');` : ""}
+          "
+          aria-label="${escapeHtml(prompt.targetLabel)} challenge"
+        >
+          ${prompt.items
+            .map((item) => createPointClickItemMarkup(item, prompt))
+            .join("")}
+        </div>
+        <p class="muted" data-role="coordinate-selection-status">0 selected</p>
+      </div>
+    `;
+  }
+
+  if (prompt.kind === "pixel_grid") {
+    return `
+      <div class="challenge-block">
+        <p>${escapeHtml(prompt.instruction)}</p>
+        ${prompt.body ? `<p>${escapeHtml(prompt.body)}</p>` : ""}
+        <input type="hidden" id="widget-grid-point" value="">
+        <div
+          class="pixel-grid"
+          data-role="pixel-grid"
+          style="--pixel-grid-columns: ${escapeHtml(prompt.columns)};"
+          aria-label="Pixel grid"
+        >
+          ${Array.from({ length: prompt.rows * prompt.columns }, (_, index) => {
+            const row = Math.floor(index / prompt.columns);
+            const column = index % prompt.columns;
+            const color = row === prompt.target.row && column === prompt.target.column ? prompt.targetColor : prompt.baseColor;
+            return `
+              <button
+                type="button"
+                class="pixel-cell"
+                data-row="${escapeHtml(row)}"
+                data-column="${escapeHtml(column)}"
+                style="background: ${escapeHtml(color)}"
+                aria-label="row ${escapeHtml(row)}, column ${escapeHtml(column)}"
+              ></button>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }
+
   return `<p class="muted">Unknown challenge type.</p>`;
 }
 
@@ -219,6 +327,22 @@ export function getAnswerForPrompt(rootElement, prompt) {
   if (prompt.kind === "short_text" || prompt.kind === "chess_puzzle") {
     const answerInput = rootElement.querySelector("#widget-answer-input");
     return { value: answerInput?.value?.trim() ?? "" };
+  }
+
+  if (prompt.kind === "word_search") {
+    const answerInput = rootElement.querySelector("#widget-word-locations") ?? rootElement.querySelector("#widget-answer-input");
+    return parseWordLocationAnswer(answerInput?.value ?? "");
+  }
+
+  if (prompt.kind === "point_click") {
+    const pointsInput = rootElement.querySelector("#widget-coordinate-points");
+    return { points: parsePointList(pointsInput?.value ?? "[]") };
+  }
+
+  if (prompt.kind === "pixel_grid") {
+    const pointInput = rootElement.querySelector("#widget-grid-point");
+    const point = parseGridPoint(pointInput?.value ?? "");
+    return point ? { point } : null;
   }
 
   const selectedChoice = rootElement.querySelector('input[name="widget-answer-choice"]:checked');
@@ -324,6 +448,85 @@ export function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function createPointClickItemMarkup(item, prompt) {
+  const imageStyle = item.imageUrl ? `background-image: url('${escapeHtml(item.imageUrl)}');` : "";
+  const className = [
+    "point-item",
+    item.kind === "tick" ? "point-item-tick" : "point-item-seed",
+    item.imageUrl ? "point-item-image" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <span
+      class="${className}"
+      data-item-kind="${escapeHtml(item.kind)}"
+      style="
+        left: ${((item.x / prompt.width) * 100).toFixed(3)}%;
+        top: ${((item.y / prompt.height) * 100).toFixed(3)}%;
+        width: ${escapeHtml(item.radius * 2)}px;
+        height: ${escapeHtml(item.radius * 2)}px;
+        transform: translate(-50%, -50%) rotate(${escapeHtml(item.rotationDegrees ?? 0)}deg);
+        ${imageStyle}
+      "
+      aria-hidden="true"
+    ></span>
+  `;
+}
+
+function parseWordLocationAnswer(value) {
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return { locations: [] };
+    }
+
+    return {
+      locations: parsed.map((location) => ({
+        word: String(location?.word ?? ""),
+        start: parseGridPointObject(location?.start),
+        end: parseGridPointObject(location?.end),
+      })),
+    };
+  } catch {
+    return { locations: [] };
+  }
+}
+
+function parsePointList(value) {
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((point) => ({
+        x: Number(point?.x),
+        y: Number(point?.y),
+      }))
+      .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  } catch {
+    return [];
+  }
+}
+
+function parseGridPoint(value) {
+  try {
+    return parseGridPointObject(JSON.parse(value));
+  } catch {
+    return null;
+  }
+}
+
+function parseGridPointObject(point) {
+  const row = Number(point?.row);
+  const column = Number(point?.column);
+  if (!Number.isSafeInteger(row) || !Number.isSafeInteger(column)) {
+    return { row: -1, column: -1 };
+  }
+
+  return { row, column };
+}
+
 function getChessBoardPosition(fen) {
   return String(fen).trim().split(/\s+/, 1)[0] ?? "";
 }
@@ -373,4 +576,13 @@ function normalizeRelativePath(value) {
   }
 
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function normalizeChallengeName(value) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return /^[a-z0-9_]+$/.test(trimmed) ? trimmed : null;
 }

@@ -44,6 +44,9 @@ Current challenge types:
 - `code_error`
 - `chess_puzzle`
 - `hash_value`
+- `massive_word_search`
+- `spot_the_ticks`
+- `odd_color_pixel`
 
 Server-owned site config is intentionally minimal:
 
@@ -294,10 +297,13 @@ Optional widget attributes:
 
 - `site-key`: public site identifier; defaults to `site_demo_123`
 - `hostname`: override the hostname sent to the challenge start API; useful for iframe-based embeddings
+- `demo-challenge`: run one named challenge in demo mode; the API returns pass/fail but never a `resultToken`
 - `app-base-path`: base path where the Worker is mounted; defaults to `/im-a-robot` when embedded under that path and `""` otherwise
 - `docs-path`: override for the API docs link
 - `privacy-path`: override for the Privacy link
 - `terms-path`: override for the Terms link
+
+You can also enter demo mode from the URL with `?challenge=<challenge_type>`, for example `/im-a-robot/?challenge=spot_the_ticks` or `/im-a-robot/embed?challenge=odd_color_pixel`. For iframe helper embeds, set `data-challenge="massive_word_search"` on the container. Demo mode is intentionally non-authorizing: a passing response includes `demo: true`, but no security code/result token is issued and no `robot-verification-passed` event is dispatched.
 
 The chess puzzle prompt uses FEN for the board position and expects the answer
 as SAN such as `Rb8#` or `Qxg7#`. The frontend renders those positions with the

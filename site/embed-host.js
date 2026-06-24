@@ -42,6 +42,7 @@ function mountEmbedContainer(containerElement, index) {
     hostname,
     parentOrigin,
     embedId,
+    challenge: containerElement.dataset.challenge,
     docsPath: containerElement.dataset.docsPath,
     privacyPath: containerElement.dataset.privacyPath,
     termsPath: containerElement.dataset.termsPath,
@@ -68,18 +69,26 @@ function mountEmbedContainer(containerElement, index) {
   });
 }
 
-function createEmbedUrl({ siteKey, hostname, parentOrigin, embedId, docsPath, privacyPath, termsPath }) {
+function createEmbedUrl({ siteKey, hostname, parentOrigin, embedId, challenge, docsPath, privacyPath, termsPath }) {
   const embedUrl = new URL(`${serviceBasePath}/embed`, serviceOrigin);
   embedUrl.searchParams.set("siteKey", siteKey);
   embedUrl.searchParams.set("hostname", hostname);
   embedUrl.searchParams.set("parentOrigin", parentOrigin);
   embedUrl.searchParams.set("embedId", embedId);
 
+  appendOptionalChallenge(embedUrl, "challenge", challenge);
   appendOptionalPath(embedUrl, "docsPath", docsPath);
   appendOptionalPath(embedUrl, "privacyPath", privacyPath);
   appendOptionalPath(embedUrl, "termsPath", termsPath);
 
   return embedUrl;
+}
+
+function appendOptionalChallenge(embedUrl, parameterName, value) {
+  const challengeName = normalizeChallengeName(value);
+  if (challengeName) {
+    embedUrl.searchParams.set(parameterName, challengeName);
+  }
 }
 
 function appendOptionalPath(embedUrl, parameterName, value) {
@@ -210,4 +219,13 @@ function normalizeEmbedId(value) {
   }
 
   return trimmedValue.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+function normalizeChallengeName(value) {
+  const trimmedValue = normalizeString(value);
+  if (!trimmedValue || !/^[a-z0-9_]+$/.test(trimmedValue)) {
+    return null;
+  }
+
+  return trimmedValue;
 }

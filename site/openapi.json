@@ -458,15 +458,24 @@
       },
       "ChallengeType": {
         "type": "string",
-        "enum": ["timed_math", "randomness_audit", "code_error", "chess_puzzle", "hash_value"]
+        "enum": [
+          "timed_math",
+          "randomness_audit",
+          "code_error",
+          "chess_puzzle",
+          "hash_value",
+          "massive_word_search",
+          "spot_the_ticks",
+          "odd_color_pixel"
+        ]
       },
       "PromptKind": {
         "type": "string",
-        "enum": ["short_text", "multiple_choice", "chess_puzzle"]
+        "enum": ["short_text", "multiple_choice", "chess_puzzle", "word_search", "point_click", "pixel_grid"]
       },
       "ChallengeAnswerFormat": {
         "type": "string",
-        "enum": ["integer", "choice_id", "san", "hex_digest"]
+        "enum": ["integer", "choice_id", "san", "hex_digest", "word_locations", "points", "grid_point"]
       },
       "Verdict": {
         "type": "string",
@@ -481,6 +490,7 @@
         "enum": [
           "invalid_site_key",
           "invalid_mode",
+          "invalid_challenge_type",
           "invalid_hostname",
           "hostname_not_allowed",
           "verification_session_not_found",
@@ -551,6 +561,10 @@
             "minimum": 1,
             "default": 1,
             "description": "Optional 1-based attempt number supplied by the widget when a user retries after a failed verification flow."
+          },
+          "demoChallenge": {
+            "$ref": "#/components/schemas/ChallengeType",
+            "description": "Optional demo-only challenge type. When supplied, the API issues that exact challenge and never returns a result token for the session."
           }
         }
       },
@@ -635,6 +649,15 @@
               },
               {
                 "$ref": "#/components/schemas/ChessPuzzleChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/WordSearchChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/PointClickChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/PixelGridChallengePrompt"
               }
             ]
           },
@@ -771,6 +794,216 @@
           }
         }
       },
+      "GridCoordinate": {
+        "type": "object",
+        "required": ["row", "column"],
+        "properties": {
+          "row": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PointCoordinate": {
+        "type": "object",
+        "required": ["x", "y"],
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": 0
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "WordSearchWordLocation": {
+        "type": "object",
+        "required": ["word", "start", "end"],
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "start": {
+            "$ref": "#/components/schemas/GridCoordinate"
+          },
+          "end": {
+            "$ref": "#/components/schemas/GridCoordinate"
+          }
+        }
+      },
+      "WordSearchChallengePrompt": {
+        "type": "object",
+        "required": ["kind", "answerFormat", "instruction", "body", "grid", "words", "inputLabel"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "word_search"
+          },
+          "answerFormat": {
+            "type": "string",
+            "const": "word_locations"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "grid": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "inputLabel": {
+            "type": "string"
+          },
+          "placeholder": {
+            "type": "string"
+          }
+        }
+      },
+      "PointClickItem": {
+        "type": "object",
+        "required": ["id", "kind", "x", "y", "radius"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["tick", "seed"]
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0
+          },
+          "radius": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Optional sprite image URL to render at this point."
+          },
+          "rotationDegrees": {
+            "type": "number"
+          }
+        }
+      },
+      "PointClickChallengePrompt": {
+        "type": "object",
+        "required": ["kind", "answerFormat", "instruction", "body", "width", "height", "targetLabel", "items"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "point_click"
+          },
+          "answerFormat": {
+            "type": "string",
+            "const": "points"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "targetLabel": {
+            "type": "string"
+          },
+          "backgroundImageUrl": {
+            "type": "string",
+            "description": "Optional background image URL for the point-click surface."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PointClickItem"
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "PixelGridChallengePrompt": {
+        "type": "object",
+        "required": [
+          "kind",
+          "answerFormat",
+          "instruction",
+          "body",
+          "rows",
+          "columns",
+          "baseColor",
+          "targetColor",
+          "targetColorLabel",
+          "target"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "pixel_grid"
+          },
+          "answerFormat": {
+            "type": "string",
+            "const": "grid_point"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "columns": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "baseColor": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "targetColor": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "targetColorLabel": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/GridCoordinate"
+          }
+        }
+      },
       "ChallengeDescriptor": {
         "type": "object",
         "required": ["type", "prompt"],
@@ -788,6 +1021,15 @@
               },
               {
                 "$ref": "#/components/schemas/ChessPuzzleChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/WordSearchChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/PointClickChallengePrompt"
+              },
+              {
+                "$ref": "#/components/schemas/PixelGridChallengePrompt"
               }
             ]
           }
@@ -829,6 +1071,10 @@
           "deadlineAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "demo": {
+            "type": "boolean",
+            "description": "True when this session is a demo challenge selected by demoChallenge."
           }
         }
       },
@@ -845,6 +1091,15 @@
           },
           {
             "$ref": "#/components/schemas/SanChallengeAnswer"
+          },
+          {
+            "$ref": "#/components/schemas/WordLocationsChallengeAnswer"
+          },
+          {
+            "$ref": "#/components/schemas/PointsChallengeAnswer"
+          },
+          {
+            "$ref": "#/components/schemas/GridPointChallengeAnswer"
           }
         ]
       },
@@ -883,6 +1138,41 @@
           "value": {
             "type": "string",
             "description": "The proposed move in standard algebraic notation, for example Qh7#."
+          }
+        }
+      },
+      "WordLocationsChallengeAnswer": {
+        "type": "object",
+        "required": ["locations"],
+        "properties": {
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WordSearchWordLocation"
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "PointsChallengeAnswer": {
+        "type": "object",
+        "required": ["points"],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PointCoordinate"
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "GridPointChallengeAnswer": {
+        "type": "object",
+        "required": ["point"],
+        "properties": {
+          "point": {
+            "$ref": "#/components/schemas/GridCoordinate"
           }
         }
       },
@@ -929,6 +1219,10 @@
           },
           "verification": {
             "$ref": "#/components/schemas/VerificationProgress"
+          },
+          "demo": {
+            "type": "boolean",
+            "description": "True when this failure came from a demo challenge."
           }
         }
       },
@@ -967,6 +1261,10 @@
           },
           "verification": {
             "$ref": "#/components/schemas/VerificationProgress"
+          },
+          "demo": {
+            "type": "boolean",
+            "description": "True when this progress response came from a demo challenge."
           }
         }
       },
@@ -1017,6 +1315,50 @@
           }
         }
       },
+      "ChallengeSubmitDemoResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "verified",
+          "demo",
+          "verdict",
+          "score",
+          "verificationSessionId",
+          "verification",
+          "completedAt"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "verified": {
+            "type": "boolean",
+            "const": true
+          },
+          "demo": {
+            "type": "boolean",
+            "const": true,
+            "description": "Demo completions are graded but deliberately do not include resultToken or expiresAt."
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "score": {
+            "type": "number"
+          },
+          "verificationSessionId": {
+            "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/VerificationProgress"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ChallengeSubmitResponse": {
         "oneOf": [
           {
@@ -1027,6 +1369,9 @@
           },
           {
             "$ref": "#/components/schemas/ChallengeSubmitVerifiedResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ChallengeSubmitDemoResponse"
           }
         ]
       },

@@ -131,6 +131,18 @@ function getCorrectAnswerFromSession(session: { gradingKey: Record<string, any> 
 		return { value: session.gradingKey.expectedHexDigest };
 	}
 
+	if (session.gradingKey.answerFormat === "points") {
+		return { points: session.gradingKey.expectedPoints };
+	}
+
+	if (session.gradingKey.answerFormat === "word_locations") {
+		return { locations: session.gradingKey.expectedLocations };
+	}
+
+	if (session.gradingKey.answerFormat === "grid_point") {
+		return { point: session.gradingKey.expectedPoint };
+	}
+
 	return { choiceId: session.gradingKey.expectedChoiceId };
 }
 
@@ -147,7 +159,7 @@ test("challenge type catalog lists formats and non-live examples without creatin
 	assert.equal(responseData.apiDocsUrl, "https://robot.example/im-a-robot/docs");
 	assert.deepEqual(
 		responseData.challenges.map((challenge: Record<string, any>) => challenge.type),
-		["timed_math", "randomness_audit", "code_error", "chess_puzzle", "hash_value"],
+		challengeDefinitions.map((challenge) => challenge.type),
 	);
 	assert.ok(
 		responseData.challenges.every(
@@ -167,22 +179,41 @@ test("challenge type catalog lists formats and non-live examples without creatin
 	assert.deepEqual(randomnessAudit.responseFormat.answer, { choiceId: "<choice-id>" });
 	assert.equal(randomnessAudit.example.prompt.choices.length, 4);
 
-	const chessPuzzle = responseData.challenges[3];
+	const chessPuzzle = responseData.challenges.find((challenge: Record<string, any>) => challenge.type === "chess_puzzle");
 	assert.equal(chessPuzzle.answerFormat, "san");
 	assert.equal(chessPuzzle.example.prompt.fen, "6k1/5ppp/8/8/8/8/8/1R4K1 w - - 0 1");
 	assert.deepEqual(chessPuzzle.example.answer, { value: "Rb8#" });
 
-	const hashValue = responseData.challenges[4];
+	const hashValue = responseData.challenges.find((challenge: Record<string, any>) => challenge.type === "hash_value");
 	assert.equal(hashValue.answerFormat, "hex_digest");
 	assert.deepEqual(hashValue.responseFormat.answer, { value: "<hex-digest>" });
 	assert.equal(hashValue.example.prompt.hashFunction, "SHA-256");
 	assert.equal(hashValue.example.prompt.valueToHash, "robot-check-42");
+
+	const massiveWordSearch = responseData.challenges.find(
+		(challenge: Record<string, any>) => challenge.type === "massive_word_search",
+	);
+	assert.equal(massiveWordSearch.answerFormat, "word_locations");
+	assert.equal(massiveWordSearch.example.prompt.kind, "word_search");
+	assert.equal(massiveWordSearch.example.prompt.words.length, 1);
+
+	const spotTheTicks = responseData.challenges.find((challenge: Record<string, any>) => challenge.type === "spot_the_ticks");
+	assert.equal(spotTheTicks.answerFormat, "points");
+	assert.equal(spotTheTicks.example.prompt.kind, "point_click");
+	assert.deepEqual(spotTheTicks.example.answer, { points: [{ x: 128, y: 96 }] });
+
+	const oddColorPixel = responseData.challenges.find(
+		(challenge: Record<string, any>) => challenge.type === "odd_color_pixel",
+	);
+	assert.equal(oddColorPixel.answerFormat, "grid_point");
+	assert.equal(oddColorPixel.example.prompt.kind, "pixel_grid");
+	assert.deepEqual(oddColorPixel.example.answer, { point: { row: 1, column: 2 } });
 	assert.equal(env.SESSIONS.store.size, 0);
 });
 
 test("challenge time limit resolver enforces the default minimum without capping longer limits", () => {
 	assert.equal(resolveChallengeTimeLimitMs(5_000), MINIMUM_CHALLENGE_TIME_LIMIT_MS);
-	assert.equal(resolveChallengeTimeLimitMs(MINIMUM_CHALLENGE_TIME_LIMIT_MS + 1_000), 61_000);
+	assert.equal(resolveChallengeTimeLimitMs(MINIMUM_CHALLENGE_TIME_LIMIT_MS + 1_000), MINIMUM_CHALLENGE_TIME_LIMIT_MS + 1_000);
 });
 
 test("embed page path resolves to the hosted iframe asset", () => {
@@ -463,6 +494,69 @@ test("widget verification defaults to one challenge per challenge type", async (
 	const startData = await readJson(startResponse);
 	assert.equal(startData.verification.requiredChallengesToPass, challengeDefinitions.length);
 	assert.equal(startData.verification.remainingChallenges, challengeDefinitions.length);
+});
+
+test("demo challenge start targets a named challenge and submit never issues a token", async () => {
+	const env = createEnv();
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+			demoChallenge: "spot_the_ticks",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	assert.equal(startData.demo, true);
+	assert.equal(startData.challenge.type, "spot_the_ticks");
+	assert.equal(startData.verification.requiredChallengesToPass, 1);
+	assert.equal(startData.verification.remainingChallenges, 1);
+
+	const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+	if (!challengeSession) {
+		throw new Error("Expected demo challenge session to be stored");
+	}
+	assert.equal(challengeSession.isDemo, true);
+	assert.equal(challengeSession.challengeType, "spot_the_ticks");
+
+	const submitResponse = await handleChallengeSubmitRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+			sessionId: startData.sessionId,
+			answer: getCorrectAnswerFromSession(challengeSession),
+		}),
+		env as never,
+	);
+
+	assert.equal(submitResponse.status, 200);
+	const submitData = await readJson(submitResponse);
+	assert.equal(submitData.success, true);
+	assert.equal(submitData.verified, true);
+	assert.equal(submitData.demo, true);
+	assert.equal(submitData.resultToken, undefined);
+	assert.equal(submitData.expiresAt, undefined);
+	assert.equal(submitData.verification.successfulChallenges, 1);
+	assert.equal(submitData.verification.remainingChallenges, 0);
+});
+
+test("demo challenge start rejects unknown challenge names", async () => {
+	const env = createEnv();
+	const response = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+			demoChallenge: "not_a_real_challenge",
+		}),
+		env as never,
+	);
+
+	assert.equal(response.status, 400);
+	const responseData = await readJson(response);
+	assert.equal(responseData.success, false);
+	assert.equal(responseData.error, "invalid_challenge_type");
 });
 
 test("api verification defaults to one challenge", async () => {

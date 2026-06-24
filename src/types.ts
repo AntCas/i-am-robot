@@ -10,8 +10,23 @@ export interface Env {
 export type Verdict = "robot" | "human" | "failed";
 export type SessionStatus = "issued" | "completed" | "expired";
 export type VerificationMode = "prove_robot" | "widget";
-export type ChallengeType = "timed_math" | "randomness_audit" | "code_error" | "chess_puzzle" | "hash_value";
-export type ChallengeAnswerFormat = "integer" | "choice_id" | "san" | "hex_digest";
+export type ChallengeType =
+	| "timed_math"
+	| "randomness_audit"
+	| "code_error"
+	| "chess_puzzle"
+	| "hash_value"
+	| "massive_word_search"
+	| "spot_the_ticks"
+	| "odd_color_pixel";
+export type ChallengeAnswerFormat =
+	| "integer"
+	| "choice_id"
+	| "san"
+	| "hex_digest"
+	| "word_locations"
+	| "points"
+	| "grid_point";
 
 export interface SiteConfig {
 	siteKey: string;
@@ -70,10 +85,75 @@ export interface ChessPuzzleChallengePrompt {
 	placeholder?: string;
 }
 
+export interface GridCoordinate {
+	row: number;
+	column: number;
+}
+
+export interface WordSearchWordLocation {
+	word: string;
+	start: GridCoordinate;
+	end: GridCoordinate;
+}
+
+export interface WordSearchChallengePrompt {
+	kind: "word_search";
+	answerFormat: "word_locations";
+	instruction: string;
+	body: string;
+	grid: string[];
+	words: string[];
+	inputLabel: string;
+	placeholder?: string;
+}
+
+export interface PointCoordinate {
+	x: number;
+	y: number;
+}
+
+export interface PointClickItem {
+	id: string;
+	kind: "tick" | "seed";
+	x: number;
+	y: number;
+	radius: number;
+	imageUrl?: string;
+	rotationDegrees?: number;
+}
+
+export interface PointClickChallengePrompt {
+	kind: "point_click";
+	answerFormat: "points";
+	instruction: string;
+	body: string;
+	width: number;
+	height: number;
+	targetLabel: string;
+	backgroundImageUrl?: string;
+	items: PointClickItem[];
+}
+
+export interface PixelGridChallengePrompt {
+	kind: "pixel_grid";
+	answerFormat: "grid_point";
+	instruction: string;
+	body: string;
+	rows: number;
+	columns: number;
+	baseColor: string;
+	targetColor: string;
+	targetColorLabel: string;
+	target: GridCoordinate;
+}
+
 export type ChallengePrompt =
 	| ShortTextChallengePrompt
 	| MultipleChoiceChallengePrompt
-	| ChessPuzzleChallengePrompt;
+	| ChessPuzzleChallengePrompt
+	| WordSearchChallengePrompt
+	| PointClickChallengePrompt
+	| PixelGridChallengePrompt;
 
 export interface IntegerChallengeGradingKey {
 	answerFormat: "integer";
@@ -95,11 +175,30 @@ export interface HexDigestChallengeGradingKey {
 	expectedHexDigest: string;
 }
 
+export interface WordLocationsChallengeGradingKey {
+	answerFormat: "word_locations";
+	expectedLocations: WordSearchWordLocation[];
+}
+
+export interface PointsChallengeGradingKey {
+	answerFormat: "points";
+	expectedPoints: PointCoordinate[];
+	hitRadius: number;
+}
+
+export interface GridPointChallengeGradingKey {
+	answerFormat: "grid_point";
+	expectedPoint: GridCoordinate;
+}
+
 export type ChallengeGradingKey =
 	| IntegerChallengeGradingKey
 	| ChoiceChallengeGradingKey
 	| SanChallengeGradingKey
-	| HexDigestChallengeGradingKey;
+	| HexDigestChallengeGradingKey
+	| WordLocationsChallengeGradingKey
+	| PointsChallengeGradingKey
+	| GridPointChallengeGradingKey;
 
 export type ChallengeGradingKeyForPrompt<TPrompt extends ChallengePrompt> = TPrompt extends ShortTextChallengePrompt
 	? IntegerChallengeGradingKey | HexDigestChallengeGradingKey
@@ -107,7 +206,13 @@ export type ChallengeGradingKeyForPrompt<TPrompt extends ChallengePrompt> = TPro
 		? ChoiceChallengeGradingKey
 		: TPrompt extends ChessPuzzleChallengePrompt
 			? SanChallengeGradingKey
-			: never;
+			: TPrompt extends WordSearchChallengePrompt
+				? WordLocationsChallengeGradingKey
+				: TPrompt extends PointClickChallengePrompt
+					? PointsChallengeGradingKey
+					: TPrompt extends PixelGridChallengePrompt
+						? GridPointChallengeGradingKey
+						: never;
 
 export interface IntegerChallengeAnswer {
 	value: string;
@@ -125,7 +230,26 @@ export interface HexDigestChallengeAnswer {
 	value: string;
 }
 
-export type ChallengeAnswer = IntegerChallengeAnswer | ChoiceChallengeAnswer | SanChallengeAnswer | HexDigestChallengeAnswer;
+export interface WordLocationsChallengeAnswer {
+	locations: WordSearchWordLocation[];
+}
+
+export interface PointsChallengeAnswer {
+	points: PointCoordinate[];
+}
+
+export interface GridPointChallengeAnswer {
+	point: GridCoordinate;
+}
+
+export type ChallengeAnswer =
+	| IntegerChallengeAnswer
+	| ChoiceChallengeAnswer
+	| SanChallengeAnswer
+	| HexDigestChallengeAnswer
+	| WordLocationsChallengeAnswer
+	| PointsChallengeAnswer
+	| GridPointChallengeAnswer;
 
 export type ChallengeAnswerForPrompt<TPrompt extends ChallengePrompt> = TPrompt extends ShortTextChallengePrompt
 	? IntegerChallengeAnswer | HexDigestChallengeAnswer
@@ -133,7 +257,13 @@ export type ChallengeAnswerForPrompt<TPrompt extends ChallengePrompt> = TPrompt 
 		? ChoiceChallengeAnswer
 		: TPrompt extends ChessPuzzleChallengePrompt
 			? SanChallengeAnswer
-			: never;
+			: TPrompt extends WordSearchChallengePrompt
+				? WordLocationsChallengeAnswer
+				: TPrompt extends PointClickChallengePrompt
+					? PointsChallengeAnswer
+					: TPrompt extends PixelGridChallengePrompt
+						? GridPointChallengeAnswer
+						: never;
 
 export interface ChallengeResponseFormat<TAnswer extends ChallengeAnswer = ChallengeAnswer> {
 	description: string;
@@ -173,6 +303,7 @@ export interface ChallengeSession {
 	siteKey: string;
 	hostname: string;
 	mode: VerificationMode;
+	isDemo?: boolean;
 	challengeType: ChallengeType;
 	issuedAt: string;
 	deadlineAt: string;
@@ -192,6 +323,7 @@ export interface VerificationSession {
 	siteKey: string;
 	hostname: string;
 	mode: VerificationMode;
+	isDemo?: boolean;
 	issuedAt: string;
 	completedAt: string | null;
 	status: VerificationSessionStatus;
@@ -252,6 +384,7 @@ export interface StartRequestBody {
 	mode?: string;
 	verificationSessionId?: string;
 	attemptNumber?: number;
+	demoChallenge?: string;
 }
 
 export interface SubmitRequestBody {

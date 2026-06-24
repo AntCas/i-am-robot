@@ -26,6 +26,7 @@ import type {
 	ChallengeSession,
 	ChallengeGradingKey,
 	ChallengePrompt,
+	ChallengeType,
 	Env,
 	RegisterSiteRequestBody,
 	MessageBoardPostPage,
@@ -148,6 +149,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	const siteKey = requestBody.siteKey?.trim();
 	const requestedVerificationMode = requestBody.mode?.trim() ?? "prove_robot";
 	const verificationSessionId = requestBody.verificationSessionId?.trim();
+	const requestedDemoChallenge = normalizeDemoChallenge(requestBody.demoChallenge);
 	const requestUrl = new URL(request.url);
 	const hostname = normalizeHostnameInput(requestBody.hostname, request.headers.get("Origin"), requestUrl.host);
 
@@ -159,6 +161,10 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		return createJsonErrorResponse("invalid_mode", 400);
 	}
 	const verificationMode = requestedVerificationMode;
+
+	if (requestBody.demoChallenge !== undefined && !requestedDemoChallenge) {
+		return createJsonErrorResponse("invalid_challenge_type", 400);
+	}
 
 	if (!hostname) {
 		return createJsonErrorResponse("invalid_hostname", 400);
@@ -180,6 +186,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		hostname,
 		mode: verificationMode,
 	});
+	const requiredChallengesToPass = requestedDemoChallenge ? 1 : verificationPolicy.requiredChallengesToPass;
 
 	const verificationSession = verificationSessionId
 		? await loadVerificationSession(env, verificationSessionId)
@@ -188,9 +195,10 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 				siteKey,
 				hostname,
 				mode: verificationMode,
+				isDemo: Boolean(requestedDemoChallenge),
 				issuedAt: new Date().toISOString(),
 				attemptNumber: normalizeAttemptNumber(requestBody.attemptNumber),
-				requiredChallengesToPass: verificationPolicy.requiredChallengesToPass,
+				requiredChallengesToPass,
 			});
 
 	if (!verificationSession) {
@@ -200,7 +208,8 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 	if (
 		verificationSession.siteKey !== siteKey ||
 		verificationSession.hostname !== hostname ||
-		verificationSession.mode !== verificationMode
+		verificationSession.mode !== verificationMode ||
+		Boolean(verificationSession.isDemo) !== Boolean(requestedDemoChallenge)
 	) {
 		return createJsonErrorResponse("invalid_verification_session", 409);
 	}
@@ -209,7 +218,9 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		return createJsonErrorResponse("verification_session_closed", 409);
 	}
 
-	const challengeDefinition = getRandomChallengeDefinition();
+	const challengeDefinition = requestedDemoChallenge
+		? getChallengeDefinitionByType(requestedDemoChallenge)
+		: getRandomChallengeDefinition();
 	const now = new Date();
 	const startedChallenge = await challengeDefinition.start({ siteKey, hostname, now });
 	const challengeTimeLimitMs = resolveChallengeTimeLimitMs(startedChallenge.timeLimitMs);
@@ -222,6 +233,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 		siteKey,
 		hostname,
 		mode: verificationMode,
+		isDemo: Boolean(requestedDemoChallenge),
 		challengeType: challengeDefinition.type,
 		issuedAt,
 		deadlineAt,
@@ -241,6 +253,7 @@ export async function handleChallengeStartRequest(request: Request, env: Env): P
 			type: challengeDefinition.type,
 			prompt: startedChallenge.promptPayload,
 		},
+		demo: Boolean(requestedDemoChallenge),
 		issuedAt,
 		deadlineAt,
 	});
@@ -268,13 +281,13 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 		return createJsonErrorResponse("session_not_found", 400);
 	}
 
-	if (!signingSecret) {
-		return createJsonErrorResponse("missing_signing_secret", 500);
-	}
-
 	const session = await loadChallengeSession(env, sessionId);
 	if (!session) {
 		return createJsonErrorResponse("session_not_found", 404);
+	}
+
+	if (!session.isDemo && !signingSecret) {
+		return createJsonErrorResponse("missing_signing_secret", 500);
 	}
 
 	if (session.status !== "issued") {
@@ -323,6 +336,7 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 			completedAt,
 			verificationSessionId: verificationSession.id,
 			verification: createVerificationProgressPayload(failedVerificationSession),
+			demo: Boolean(verificationSession.isDemo),
 		});
 	}
 
@@ -342,7 +356,34 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 			completedAt,
 			verificationSessionId: verificationSession.id,
 			verification: createVerificationProgressPayload(advancedVerificationSession),
+			demo: Boolean(verificationSession.isDemo),
 		});
+	}
+
+	if (verificationSession.isDemo) {
+		const completedDemoVerificationSession = createCompletedVerificationSession({
+			session: verificationSession,
+			completedAt,
+			successfulChallenges,
+			tokenId: null,
+		});
+
+		await saveVerificationSession(env, completedDemoVerificationSession);
+
+		return createJsonResponse({
+			success: true,
+			verified: true,
+			demo: true,
+			verdict: scoreResult.verdict,
+			score: scoreResult.score,
+			verificationSessionId: verificationSession.id,
+			verification: createVerificationProgressPayload(completedDemoVerificationSession),
+			completedAt,
+		});
+	}
+
+	if (!signingSecret) {
+		return createJsonErrorResponse("missing_signing_secret", 500);
 	}
 
 	const tokenIssuedAtSeconds = Math.floor(submittedAt.getTime() / 1000);
@@ -785,6 +826,7 @@ function createPendingChallengeSession(args: {
 	siteKey: string;
 	hostname: string;
 	mode: VerificationMode;
+	isDemo: boolean;
 	challengeType: ChallengeSession["challengeType"];
 	issuedAt: string;
 	deadlineAt: string;
@@ -797,6 +839,7 @@ function createPendingChallengeSession(args: {
 		siteKey: args.siteKey,
 		hostname: args.hostname,
 		mode: args.mode,
+		isDemo: args.isDemo,
 		challengeType: args.challengeType,
 		issuedAt: args.issuedAt,
 		deadlineAt: args.deadlineAt,
@@ -831,6 +874,7 @@ function createActiveVerificationSession(args: {
 	siteKey: string;
 	hostname: string;
 	mode: VerificationMode;
+	isDemo: boolean;
 	issuedAt: string;
 	attemptNumber: number;
 	requiredChallengesToPass: number;
@@ -840,6 +884,7 @@ function createActiveVerificationSession(args: {
 		siteKey: args.siteKey,
 		hostname: args.hostname,
 		mode: args.mode,
+		isDemo: args.isDemo,
 		issuedAt: args.issuedAt,
 		completedAt: null,
 		status: "active",
@@ -854,7 +899,7 @@ function createCompletedVerificationSession(args: {
 	session: VerificationSession;
 	completedAt: string;
 	successfulChallenges: number;
-	tokenId: string;
+	tokenId: string | null;
 }): VerificationSession {
 	return {
 		...args.session,
@@ -911,6 +956,19 @@ function resolveVerificationPolicy(args: {
 
 function isVerificationMode(value: string): value is VerificationMode {
 	return value === "prove_robot" || value === "widget";
+}
+
+function normalizeDemoChallenge(value: string | undefined): ChallengeType | null {
+	const challengeType = value?.trim();
+	if (!challengeType) {
+		return null;
+	}
+
+	return isChallengeType(challengeType) ? challengeType : null;
+}
+
+function isChallengeType(value: string): value is ChallengeType {
+	return challengeDefinitions.some((challenge) => challenge.type === value);
 }
 
 function getDefaultVerificationPolicy(mode: VerificationMode): VerificationPolicy {

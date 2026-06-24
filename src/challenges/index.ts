@@ -2,7 +2,10 @@ import type { ChallengeDefinition, ChallengeType, ResultTokenPayload } from "../
 import { chessPuzzleChallenge } from "./_chess-puzzle.ts";
 import { codeErrorChallenge } from "./_code-error.ts";
 import { hashValueChallenge } from "./_hash-value.ts";
+import { massiveWordSearchChallenge } from "./_massive-word-search.ts";
+import { oddColorPixelChallenge } from "./_odd-color-pixel.ts";
 import { randomnessAuditChallenge } from "./_randomness-audit.ts";
+import { spotTheTicksChallenge } from "./_spot-the-ticks.ts";
 import { timedMathChallenge } from "./_timed-math.ts";
 
 // This module keeps the challenge registry shallow so future add/remove work
@@ -19,6 +22,9 @@ export const challengeDefinitions = [
 	codeErrorChallenge,
 	chessPuzzleChallenge,
 	hashValueChallenge,
+	massiveWordSearchChallenge,
+	spotTheTicksChallenge,
+	oddColorPixelChallenge,
 ] as const satisfies readonly ChallengeDefinition[];
 
 export function getChallengeDefinitionByType(type: ChallengeType): ChallengeDefinition {

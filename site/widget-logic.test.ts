@@ -92,6 +92,72 @@ test("getAnswerForPrompt returns a typed SAN answer for chess prompts", () => {
 	assert.deepEqual(getAnswerForPrompt(root, prompt), { value: "Ra8#" });
 });
 
+test("getAnswerForPrompt returns word search locations from the hidden locations input", () => {
+	const prompt = {
+		kind: "word_search",
+		answerFormat: "word_locations",
+		instruction: "Find words.",
+		body: "Use coordinates.",
+		grid: ["ROBOT"],
+		words: ["ROBOT"],
+		inputLabel: "Locations",
+	};
+	const locations = [{ word: "ROBOT", start: { row: 0, column: 0 }, end: { row: 0, column: 4 } }];
+	const root = {
+		querySelector(selector: string) {
+			assert.equal(selector, "#widget-word-locations");
+			return { value: JSON.stringify(locations) };
+		},
+	};
+
+	assert.deepEqual(getAnswerForPrompt(root, prompt), { locations });
+});
+
+test("getAnswerForPrompt returns selected point-click coordinates", () => {
+	const prompt = {
+		kind: "point_click",
+		answerFormat: "points",
+		instruction: "Click ticks.",
+		body: "Avoid seeds.",
+		width: 640,
+		height: 420,
+		targetLabel: "tick",
+		items: [],
+	};
+	const points = [{ x: 128, y: 96 }];
+	const root = {
+		querySelector(selector: string) {
+			assert.equal(selector, "#widget-coordinate-points");
+			return { value: JSON.stringify(points) };
+		},
+	};
+
+	assert.deepEqual(getAnswerForPrompt(root, prompt), { points });
+});
+
+test("getAnswerForPrompt returns selected pixel grid coordinate", () => {
+	const prompt = {
+		kind: "pixel_grid",
+		answerFormat: "grid_point",
+		instruction: "Find the odd pixel.",
+		body: "Use coordinates.",
+		rows: 16,
+		columns: 16,
+		baseColor: "#2F7D32",
+		targetColor: "#4F7942",
+		targetColorLabel: "odd pixel",
+		target: { row: 3, column: 7 },
+	};
+	const root = {
+		querySelector(selector: string) {
+			assert.equal(selector, "#widget-grid-point");
+			return { value: JSON.stringify({ row: 3, column: 7 }) };
+		},
+	};
+
+	assert.deepEqual(getAnswerForPrompt(root, prompt), { point: { row: 3, column: 7 } });
+});
+
 test("getChallengeMarkup renders choice descriptions for grid multiple choice prompts", () => {
 	const markup = getChallengeMarkup({
 		kind: "multiple_choice",
@@ -141,6 +207,74 @@ test("getChallengeMarkup renders a chess board and FEN for chess prompts", () =>
 	assert.match(markup, /FEN:/);
 });
 
+test("getChallengeMarkup renders word search prompts", () => {
+	const markup = getChallengeMarkup({
+		kind: "word_search",
+		answerFormat: "word_locations",
+		instruction: "Find each target word.",
+		body: "Coordinates are zero-based.",
+		grid: ["ROBOT", "ABCDE"],
+		words: ["ROBOT"],
+		inputLabel: "Word locations",
+		placeholder: "[]",
+	});
+
+	assert.match(markup, /word-search-grid/);
+	assert.match(markup, /word-search-cell/);
+	assert.match(markup, /robot-only-challenge-copy/);
+	assert.match(markup, /Coordinates are zero-based\./);
+	assert.match(markup, /id="widget-word-locations"/);
+	assert.match(markup, /0\/1 found/);
+	assert.doesNotMatch(markup, /textarea/);
+});
+
+test("getChallengeMarkup renders point-click and pixel-grid prompts", () => {
+	const pointMarkup = getChallengeMarkup({
+		kind: "point_click",
+		answerFormat: "points",
+		instruction: "Click every tick.",
+		body: "Avoid seeds.",
+		width: 640,
+		height: 420,
+		targetLabel: "tick",
+		backgroundImageUrl: "/challenge-assets/lemon-poppy-seed-muffin.webp",
+		items: [
+			{
+				id: "tick_1",
+				kind: "tick",
+				x: 128,
+				y: 96,
+				radius: 5,
+				imageUrl: "/challenge-assets/tick.svg",
+				rotationDegrees: 18,
+			},
+			{ id: "seed_1", kind: "seed", x: 220, y: 112, radius: 13, rotationDegrees: 74 },
+		],
+	});
+	const pixelMarkup = getChallengeMarkup({
+		kind: "pixel_grid",
+		answerFormat: "grid_point",
+		instruction: "Find the odd pixel.",
+		body: "Use coordinates.",
+		rows: 2,
+		columns: 2,
+		baseColor: "#2F7D32",
+		targetColor: "#4F7942",
+		targetColorLabel: "odd pixel",
+		target: { row: 1, column: 0 },
+	});
+
+	assert.match(pointMarkup, /point-click-surface/);
+	assert.match(pointMarkup, /lemon-poppy-seed-muffin\.webp/);
+	assert.match(pointMarkup, /robot-only-challenge-copy/);
+	assert.match(pointMarkup, /Avoid seeds\./);
+	assert.match(pointMarkup, /point-item-tick/);
+	assert.match(pointMarkup, /tick\.svg/);
+	assert.match(pointMarkup, /point-item-seed/);
+	assert.match(pixelMarkup, /pixel-grid/);
+	assert.match(pixelMarkup, /background: #4F7942/);
+});
+
 test("getWidgetMarkup includes a low-profile api docs hint", () => {
 	const markup = getWidgetMarkup({
 		appBasePath: "/im-a-robot",
@@ -176,10 +310,31 @@ test("resolveWidgetConfig defaults docsPath from app base path", () => {
 		appBasePath: "/im-a-robot",
 		siteKey: "site_demo_123",
 		hostname: null,
+		demoChallenge: null,
 		docsPath: "/im-a-robot/docs/",
 		privacyPath: "/im-a-robot/privacy",
 		termsPath: "/im-a-robot/terms",
 	});
+});
+
+test("resolveWidgetConfig reads demo challenge from URL search params", () => {
+	const element = {
+		getAttribute(name: string) {
+			const attrs: Record<string, string | null> = {
+				"app-base-path": "/im-a-robot",
+				"site-key": "site_demo_123",
+				hostname: null,
+				"demo-challenge": null,
+				"docs-path": null,
+				"privacy-path": null,
+				"terms-path": null,
+			};
+
+			return attrs[name] ?? null;
+		},
+	};
+
+	assert.equal(resolveWidgetConfig(element, "/im-a-robot/", "?challenge=spot_the_ticks").demoChallenge, "spot_the_ticks");
 });
 
 test("getProgressSegmentStates matches required challenge count", () => {
@@ -219,5 +374,16 @@ test("createStartChallengeRequestBody identifies widget verification mode and at
 		mode: "widget",
 		verificationSessionId: null,
 		attemptNumber: 2,
+	});
+});
+
+test("createStartChallengeRequestBody includes demo challenge when supplied", () => {
+	assert.deepEqual(createStartChallengeRequestBody("site_demo_123", "castrio.me", null, 1, "odd_color_pixel"), {
+		siteKey: "site_demo_123",
+		hostname: "castrio.me",
+		mode: "widget",
+		verificationSessionId: null,
+		attemptNumber: 1,
+		demoChallenge: "odd_color_pixel",
 	});
 });

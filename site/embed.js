@@ -12,6 +12,7 @@ const embedId = normalizeEmbedId(searchParams.get("embedId")) ?? "robot-check-em
 const siteKey = normalizeString(searchParams.get("siteKey")) ?? DEFAULT_SITE_KEY;
 const parentOrigin = normalizeOrigin(searchParams.get("parentOrigin")) ?? referrerUrl?.origin ?? "*";
 const hostname = normalizeHostname(searchParams.get("hostname")) ?? referrerUrl?.host ?? window.location.host;
+const demoChallenge = normalizeChallengeName(searchParams.get("challenge"));
 const rootElement = document.querySelector('[data-role="embed-root"]');
 
 if (rootElement) {
@@ -25,6 +26,10 @@ function mountEmbed(root) {
 
   if (hostname) {
     widgetElement.setAttribute("hostname", hostname);
+  }
+
+  if (demoChallenge) {
+    widgetElement.setAttribute("demo-challenge", demoChallenge);
   }
 
   applyOptionalPath(widgetElement, "docs-path", searchParams.get("docsPath"));
@@ -175,6 +180,15 @@ function normalizeEmbedId(value) {
   }
 
   return trimmedValue.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+function normalizeChallengeName(value) {
+  const trimmedValue = normalizeString(value);
+  if (!trimmedValue || !/^[a-z0-9_]+$/.test(trimmedValue)) {
+    return null;
+  }
+
+  return trimmedValue;
 }
 
 function parseUrl(value) {
