@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
 	createStartChallengeRequestBody,
+	formatApiExchange,
 	getCountdownPressureProgress,
 	getAnswerForPrompt,
 	getChallengeMarkup,
@@ -311,6 +312,50 @@ test("getWidgetMarkup includes a low-profile api docs hint", () => {
 	assert.match(markup, /Robot operators:/);
 	assert.match(markup, /href="\/im-a-robot\/docs\/"/);
 	assert.match(markup, /direct verification without driving the browser widget/);
+	assert.doesNotMatch(markup, /data-role="api-preview"/);
+});
+
+test("getWidgetMarkup includes the api preview only in demo mode", () => {
+	const markup = getWidgetMarkup({
+		appBasePath: "/im-a-robot",
+		siteKey: "site_demo_123",
+		hostname: null,
+		demoChallenge: "odd_color_pixel",
+		docsPath: "/im-a-robot/docs/",
+		privacyPath: "/im-a-robot/privacy",
+		termsPath: "/im-a-robot/terms",
+	});
+
+	assert.match(markup, /data-role="api-preview"/);
+	assert.match(markup, /data-role="api-preview-body"/);
+	assert.match(markup, /Equivalent API call/);
+});
+
+test("formatApiExchange renders the request with method, url, and body", () => {
+	const markup = formatApiExchange({
+		title: "Submit answer",
+		method: "POST",
+		url: "https://example.com/api/challenge/submit",
+		requestBody: { sessionId: "abc", answer: { value: "42" } },
+	});
+
+	assert.match(markup, /Submit answer/);
+	assert.match(markup, /<span class="api-exchange-method">POST<\/span> https:\/\/example.com\/api\/challenge\/submit/);
+	assert.match(markup, /&quot;sessionId&quot;: &quot;abc&quot;/);
+	assert.doesNotMatch(markup, /Response/);
+});
+
+test("formatApiExchange includes a response section when provided", () => {
+	const markup = formatApiExchange({
+		title: "Submit answer",
+		method: "POST",
+		url: "https://example.com/api/challenge/submit",
+		requestBody: { sessionId: "abc", answer: { value: "42" } },
+		responseBody: { success: false, reason: "incorrect_answer" },
+	});
+
+	assert.match(markup, /Response/);
+	assert.match(markup, /&quot;reason&quot;: &quot;incorrect_answer&quot;/);
 });
 
 test("resolveWidgetConfig defaults docsPath from app base path", () => {

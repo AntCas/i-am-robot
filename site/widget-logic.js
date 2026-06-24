@@ -98,9 +98,51 @@ export function getWidgetMarkup(config) {
         </div>
 
         <p class="widget-result hidden" data-role="result"></p>
+        ${config.demoChallenge ? getApiPreviewMarkup() : ""}
       </section>
     </div>
   `;
+}
+
+function getApiPreviewMarkup() {
+  return `
+    <section class="widget-api-preview hidden" data-role="api-preview">
+      <p class="widget-api-preview-title">Equivalent API call</p>
+      <p class="widget-api-preview-hint">Demo only — mirrors the request built from your inputs and the response it returns.</p>
+      <div class="widget-api-preview-body" data-role="api-preview-body"></div>
+    </section>
+  `;
+}
+
+export function formatApiExchange({ title, method, url, requestBody, responseBody }) {
+  const responseSection =
+    responseBody === undefined
+      ? ""
+      : `
+        <p class="api-exchange-heading">Response</p>
+        <pre class="api-exchange-code">${escapeHtml(formatApiJson(responseBody))}</pre>`;
+
+  return `
+    <div class="api-exchange">
+      <p class="api-exchange-title">${escapeHtml(title)}</p>
+      <p class="api-exchange-heading">Request</p>
+      <pre class="api-exchange-code"><span class="api-exchange-method">${escapeHtml(method)}</span> ${escapeHtml(url)}
+${escapeHtml(formatApiJson(requestBody))}</pre>
+      ${responseSection}
+    </div>
+  `;
+}
+
+function formatApiJson(value) {
+  if (value === undefined) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 export function resolveWidgetConfig(element, pathname, search = "") {

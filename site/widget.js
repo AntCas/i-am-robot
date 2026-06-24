@@ -2,6 +2,7 @@ import {
   createInitialWidgetState,
   createStartChallengeRequestBody,
   createSubmitChallengeRequestBody,
+  formatApiExchange,
   formatRemainingSeconds,
   getCountdownPressureProgress,
   getAnswerForPrompt,
@@ -59,6 +60,8 @@ class RobotCheckWidget extends HTMLElement {
     this.timerElement = this.querySelector('[data-role="timer"]');
     this.progressBarElement = this.querySelector('[data-role="progress-bar"]');
     this.progressSegmentsElement = this.querySelector('[data-role="progress-segments"]');
+    this.apiPreviewElement = this.querySelector('[data-role="api-preview"]');
+    this.apiPreviewBodyElement = this.querySelector('[data-role="api-preview-body"]');
   }
 
   registerEventHandlers() {
@@ -83,6 +86,12 @@ class RobotCheckWidget extends HTMLElement {
     });
     this.challengeContainer.addEventListener("mouseleave", () => {
       clearWordSearchPreview(this.challengeContainer);
+    });
+    this.challengeContainer.addEventListener("input", () => {
+      this.renderApiPreview();
+    });
+    this.challengeContainer.addEventListener("change", () => {
+      this.renderApiPreview();
     });
   }
 
@@ -114,6 +123,7 @@ class RobotCheckWidget extends HTMLElement {
     this.state.resultToken = null;
     this.state.resultTokenExpiresAt = null;
     this.state.isDemo = Boolean(this.state.config.demoChallenge);
+    this.resetApiPreview();
     this.updateProgressBar();
     this.challengeContainer.innerHTML = '<p class="muted">Loading challenge...</p>';
   }
@@ -135,6 +145,7 @@ class RobotCheckWidget extends HTMLElement {
       this.restoreDefaultCopy();
     }
 
+    this.resetApiPreview();
     this.expandedElement.classList.add("hidden");
     this.metaElement.classList.add("hidden");
     this.challengeContainer.innerHTML = '<p class="muted">Check the box to load a challenge.</p>';
@@ -164,14 +175,17 @@ class RobotCheckWidget extends HTMLElement {
 
     this.verifyButton.disabled = true;
 
+    const submitRequestBody = createSubmitChallengeRequestBody(this.state.sessionId, answer);
+
     try {
       const response = await fetch(this.getChallengeSubmitUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createSubmitChallengeRequestBody(this.state.sessionId, answer)),
+        body: JSON.stringify(submitRequestBody),
       });
 
       const responseData = await response.json();
+      this.recordSubmitExchange(submitRequestBody, responseData);
       if (!responseData.success) {
         await this.handleFailedVerification(responseData);
         return;
@@ -207,22 +221,23 @@ class RobotCheckWidget extends HTMLElement {
     this.verifyButton.disabled = true;
     this.challengeContainer.innerHTML = '<p class="muted">Loading challenge...</p>';
 
+    const startRequestBody = createStartChallengeRequestBody(
+      this.state.config.siteKey,
+      this.state.config.hostname || window.location.host,
+      this.state.verificationSessionId,
+      this.getCurrentAttemptNumber(),
+      this.state.config.demoChallenge,
+    );
+
     try {
       const response = await fetch(this.getChallengeStartUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          createStartChallengeRequestBody(
-            this.state.config.siteKey,
-            this.state.config.hostname || window.location.host,
-            this.state.verificationSessionId,
-            this.getCurrentAttemptNumber(),
-            this.state.config.demoChallenge,
-          ),
-        ),
+        body: JSON.stringify(startRequestBody),
       });
 
       const responseData = await response.json();
+      this.recordStartExchange(startRequestBody, responseData);
       if (!response.ok || !responseData.sessionId) {
         const message = responseData.error
           ? `Could not load challenge: ${responseData.error}`
@@ -250,6 +265,7 @@ class RobotCheckWidget extends HTMLElement {
       this.updateProgressBar();
       this.metaElement.classList.remove("hidden");
       this.verifyButton.disabled = false;
+      this.renderApiPreview();
       this.startCountdownTimer();
     } catch (error) {
       this.showErrorMessage(String(error));
@@ -399,18 +415,21 @@ class RobotCheckWidget extends HTMLElement {
     const wordSearchCell = event.target.closest?.(".word-search-cell");
     if (wordSearchCell && this.challengeContainer.contains(wordSearchCell)) {
       this.selectWordSearchCell(wordSearchCell);
+      this.renderApiPreview();
       return;
     }
 
     const pixelCell = event.target.closest?.(".pixel-cell");
     if (pixelCell && this.challengeContainer.contains(pixelCell)) {
       this.selectPixelCell(pixelCell);
+      this.renderApiPreview();
       return;
     }
 
     const pointSurface = event.target.closest?.('[data-role="point-click-surface"]');
     if (pointSurface && this.challengeContainer.contains(pointSurface)) {
       this.togglePointSelection(event, pointSurface);
+      this.renderApiPreview();
     }
   }
 
@@ -654,6 +673,74 @@ class RobotCheckWidget extends HTMLElement {
     this.state.successfulChallenges = responseData.verification.successfulChallenges;
     this.state.requiredChallengesToPass = responseData.verification.requiredChallengesToPass;
     return true;
+  }
+
+  resetApiPreview() {
+    this.state.startExchange = null;
+    this.state.submitResponse = undefined;
+    if (this.apiPreviewBodyElement) {
+      this.apiPreviewBodyElement.innerHTML = "";
+    }
+    this.apiPreviewElement?.classList.add("hidden");
+  }
+
+  recordStartExchange(requestBody, responseBody) {
+    if (!this.state.isDemo) {
+      return;
+    }
+
+    this.state.startExchange = {
+      title: "Start challenge",
+      method: "POST",
+      url: this.getChallengeStartUrl(),
+      requestBody,
+      responseBody,
+    };
+    this.state.submitResponse = undefined;
+    this.renderApiPreview();
+  }
+
+  recordSubmitExchange(requestBody, responseBody) {
+    if (!this.state.isDemo) {
+      return;
+    }
+
+    this.state.lastSubmitRequestBody = requestBody;
+    this.state.submitResponse = responseBody;
+    this.renderApiPreview();
+  }
+
+  renderApiPreview() {
+    if (!this.state.isDemo || !this.apiPreviewElement || !this.apiPreviewBodyElement) {
+      return;
+    }
+
+    const exchanges = [];
+    if (this.state.startExchange) {
+      exchanges.push(formatApiExchange(this.state.startExchange));
+    }
+
+    if (this.state.sessionId) {
+      const requestBody =
+        this.state.submitResponse !== undefined
+          ? this.state.lastSubmitRequestBody
+          : createSubmitChallengeRequestBody(
+              this.state.sessionId,
+              getAnswerForPrompt(this, this.state.challengePrompt),
+            );
+      exchanges.push(
+        formatApiExchange({
+          title: "Submit answer",
+          method: "POST",
+          url: this.getChallengeSubmitUrl(),
+          requestBody,
+          responseBody: this.state.submitResponse,
+        }),
+      );
+    }
+
+    this.apiPreviewBodyElement.innerHTML = exchanges.join("");
+    this.apiPreviewElement.classList.toggle("hidden", exchanges.length === 0);
   }
 
   getCurrentAttemptNumber() {
