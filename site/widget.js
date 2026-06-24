@@ -25,6 +25,7 @@ const PAGE_COUNTDOWN_VIGNETTE_VAR = "--page-countdown-vignette";
 const MAX_PAGE_COUNTDOWN_DARKNESS = 0.72;
 const MAX_PAGE_COUNTDOWN_VIGNETTE = 0.78;
 const BARB_ANIMATION_DURATION_MS = 2200;
+const BARB_HOLD_DURATION_MS = BARB_ANIMATION_DURATION_MS * 2;
 
 class RobotCheckWidget extends HTMLElement {
   connectedCallback() {
@@ -319,7 +320,7 @@ class RobotCheckWidget extends HTMLElement {
       renderChessPuzzleBarb(this.challengeContainer, responseData.barbContext);
     }
 
-    await waitFor(BARB_ANIMATION_DURATION_MS);
+    await waitFor(BARB_HOLD_DURATION_MS);
   }
 
   showFailureState(message, shouldShowAttemptsRemaining) {
