@@ -282,6 +282,24 @@ test("getChallengeMarkup renders point-click and pixel-grid prompts", () => {
 		target: { row: 1, column: 0 },
 	});
 
+	const basePathMarkup = getChallengeMarkup(
+		{
+			kind: "point_click",
+			answerFormat: "points",
+			instruction: "Click every tick.",
+			width: 640,
+			height: 420,
+			targetLabel: "tick",
+			backgroundImageUrl: "/challenge-assets/lemon-poppy-seed-muffin.webp",
+			items: [{ id: "tick_1", kind: "tick", x: 128, y: 96, radius: 5, imageUrl: "/challenge-assets/tick.svg" }],
+		},
+		"/im-a-robot",
+	);
+
+	assert.match(basePathMarkup, /\/im-a-robot\/challenge-assets\/lemon-poppy-seed-muffin\.webp/);
+	assert.match(basePathMarkup, /\/im-a-robot\/challenge-assets\/tick\.svg/);
+	assert.doesNotMatch(basePathMarkup, /url\('\/challenge-assets/);
+
 	assert.match(pointMarkup, /point-click-surface/);
 	assert.match(pointMarkup, /lemon-poppy-seed-muffin\.webp/);
 	assert.match(pointMarkup, /robot-only-challenge-copy/);

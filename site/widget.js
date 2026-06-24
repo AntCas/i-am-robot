@@ -255,7 +255,7 @@ class RobotCheckWidget extends HTMLElement {
         this.showErrorMessage("Could not load challenge: missing verification progress.");
         return;
       }
-      this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.prompt);
+      this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.prompt, this.state.config.appBasePath);
       if (responseData.challenge.prompt.kind === "chess_puzzle") {
         await chessBoardComponentReady;
       }

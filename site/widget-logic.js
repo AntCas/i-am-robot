@@ -183,7 +183,19 @@ export function createSubmitChallengeRequestBody(sessionId, answer) {
   };
 }
 
-export function getChallengeMarkup(prompt) {
+export function resolveAssetUrl(url, appBasePath = "") {
+  if (!url || !appBasePath || !url.startsWith("/")) {
+    return url;
+  }
+
+  if (url === appBasePath || url.startsWith(`${appBasePath}/`)) {
+    return url;
+  }
+
+  return `${appBasePath}${url}`;
+}
+
+export function getChallengeMarkup(prompt, appBasePath = "") {
   if (prompt.kind === "short_text") {
     return `
       <div class="challenge-block">
@@ -303,23 +315,24 @@ export function getChallengeMarkup(prompt) {
   }
 
   if (prompt.kind === "point_click") {
+    const backgroundImageUrl = resolveAssetUrl(prompt.backgroundImageUrl, appBasePath);
     return `
       <div class="challenge-block">
         <p>${escapeHtml(prompt.instruction)}</p>
         ${prompt.body ? `<p class="robot-only-challenge-copy" aria-hidden="true">${escapeHtml(prompt.body)}</p>` : ""}
         <input type="hidden" id="widget-coordinate-points" value="[]">
         <div
-          class="point-click-surface${prompt.backgroundImageUrl ? " point-click-surface-image" : ""}"
+          class="point-click-surface${backgroundImageUrl ? " point-click-surface-image" : ""}"
           data-role="point-click-surface"
           style="
             --point-surface-width: ${escapeHtml(prompt.width)};
             --point-surface-height: ${escapeHtml(prompt.height)};
-            ${prompt.backgroundImageUrl ? `background-image: url('${escapeHtml(prompt.backgroundImageUrl)}');` : ""}
+            ${backgroundImageUrl ? `background-image: url('${escapeHtml(backgroundImageUrl)}');` : ""}
           "
           aria-label="${escapeHtml(prompt.targetLabel)} challenge"
         >
           ${prompt.items
-            .map((item) => createPointClickItemMarkup(item, prompt))
+            .map((item) => createPointClickItemMarkup(item, prompt, appBasePath))
             .join("")}
         </div>
         <p class="muted" data-role="coordinate-selection-status">0 selected</p>
@@ -491,12 +504,13 @@ export function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function createPointClickItemMarkup(item, prompt) {
-  const imageStyle = item.imageUrl ? `background-image: url('${escapeHtml(item.imageUrl)}');` : "";
+function createPointClickItemMarkup(item, prompt, appBasePath = "") {
+  const itemImageUrl = resolveAssetUrl(item.imageUrl, appBasePath);
+  const imageStyle = itemImageUrl ? `background-image: url('${escapeHtml(itemImageUrl)}');` : "";
   const className = [
     "point-item",
     item.kind === "tick" ? "point-item-tick" : "point-item-seed",
-    item.imageUrl ? "point-item-image" : "",
+    itemImageUrl ? "point-item-image" : "",
   ].filter(Boolean).join(" ");
   return `
     <span
