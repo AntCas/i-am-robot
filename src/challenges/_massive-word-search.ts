@@ -1,4 +1,11 @@
-import { createFailedScore, createShuffledCopy, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
+import {
+	createBarb,
+	createFailedScore,
+	createShuffledCopy,
+	createSuccessfulScore,
+	getRandomInteger,
+	wasSubmittedAfterDeadline,
+} from "./shared.ts";
 import type {
 	ChallengeDefinition,
 	ChallengeStartContext,
@@ -130,24 +137,24 @@ export const massiveWordSearchChallenge = {
 		const submittedLocations = (context.answer as WordLocationsChallengeAnswer | undefined)?.locations;
 
 		if (!Array.isArray(submittedLocations)) {
-			return createFailedScore("incorrect_answer");
+			return {
+				...createFailedScore("incorrect_answer"),
+				barb: createWordSearchBarb(0, expectedLocations.length),
+			};
 		}
 
-		if (submittedLocations.length !== expectedLocations.length) {
-			return createFailedScore("incorrect_answer");
+		const foundWordCount = countMatchedWordLocations(expectedLocations, submittedLocations);
+		const hasExactLocationCount = submittedLocations.length === expectedLocations.length;
+		const hasEveryExpectedLocation = foundWordCount === expectedLocations.length;
+
+		if (hasExactLocationCount && hasEveryExpectedLocation) {
+			return createSuccessfulScore();
 		}
 
-		for (const expectedLocation of expectedLocations) {
-			const submittedLocation = submittedLocations.find(
-				(location) => normalizeWord(location?.word) === normalizeWord(expectedLocation.word),
-			);
-
-			if (!submittedLocation || !locationsMatch(expectedLocation, submittedLocation)) {
-				return createFailedScore("incorrect_answer");
-			}
-		}
-
-		return createSuccessfulScore();
+		return {
+			...createFailedScore("incorrect_answer"),
+			barb: createWordSearchBarb(foundWordCount, expectedLocations.length),
+		};
 	},
 } satisfies ChallengeDefinition<
 	"massive_word_search",
@@ -155,6 +162,43 @@ export const massiveWordSearchChallenge = {
 	WordLocationsChallengeGradingKey,
 	WordLocationsChallengeAnswer
 >;
+
+function countMatchedWordLocations(
+	expectedLocations: WordSearchWordLocation[],
+	submittedLocations: WordSearchWordLocation[],
+): number {
+	let matchedCount = 0;
+
+	for (const expectedLocation of expectedLocations) {
+		const submittedLocation = submittedLocations.find(
+			(location) => normalizeWord(location?.word) === normalizeWord(expectedLocation.word),
+		);
+
+		if (submittedLocation && locationsMatch(expectedLocation, submittedLocation)) {
+			matchedCount += 1;
+		}
+	}
+
+	return matchedCount;
+}
+
+function createWordSearchBarb(foundWordCount: number, totalWordCount: number): string {
+	const wordLabel = foundWordCount === 1 ? "word" : "words";
+
+	if (foundWordCount === 0) {
+		return createBarb(`You found 0 of ${totalWordCount} words. Dumbfounded is doing a lot of work here`);
+	}
+
+	if (foundWordCount <= 5) {
+		return createBarb(`You found ${foundWordCount} of ${totalWordCount} ${wordLabel}. A toaster with stage fright might have done better`);
+	}
+
+	if (foundWordCount <= 9) {
+		return createBarb(`You found ${foundWordCount} of ${totalWordCount} ${wordLabel}. I'm skeptical of this whole performance`);
+	}
+
+	return createBarb(`You found all ${totalWordCount} words, then added extra nonsense for atmosphere`);
+}
 
 function createWordSearch(words: readonly string[], size: number): { grid: string[]; locations: WordSearchWordLocation[] } {
 	const grid: string[][] = Array.from({ length: size }, () => Array.from({ length: size }, () => ""));

@@ -70,6 +70,7 @@ test("massive word search scoring rejects missing locations and late submissions
 	assert.equal(missingResult.score, 0);
 	assert.equal(missingResult.verdict, "failed");
 	assert.equal(missingResult.reason, "incorrect_answer");
+	assert.match(missingResult.barb ?? "", /^You found 9 of 10 words\. I'm skeptical of this whole performance, .+\.$/);
 
 	const extraResult = await massiveWordSearchChallenge.score({
 		promptPayload: startedChallenge.promptPayload,
@@ -91,6 +92,7 @@ test("massive word search scoring rejects missing locations and late submissions
 	assert.equal(extraResult.score, 0);
 	assert.equal(extraResult.verdict, "failed");
 	assert.equal(extraResult.reason, "incorrect_answer");
+	assert.match(extraResult.barb ?? "", /^You found all 10 words, then added extra nonsense for atmosphere, .+\.$/);
 
 	const lateResult = await massiveWordSearchChallenge.score({
 		promptPayload: startedChallenge.promptPayload,
@@ -104,6 +106,58 @@ test("massive word search scoring rejects missing locations and late submissions
 	assert.equal(lateResult.verdict, "failed");
 	assert.equal(lateResult.reason, "deadline_exceeded");
 });
+
+test("massive word search barb gets meaner when fewer words are found", async () => {
+	const gradingKey = createWordSearchGradingKey();
+	const baseContext = {
+		promptPayload: {
+			kind: "word_search",
+			answerFormat: "word_locations",
+			instruction: "Find each target word in the grid.",
+			grid: [],
+			words: gradingKey.expectedLocations.map((location) => location.word),
+			inputLabel: "Word locations",
+		},
+		gradingKey,
+		submittedAt: new Date("2026-06-24T12:00:00.000Z"),
+		deadlineAt: new Date("2026-06-24T12:01:00.000Z"),
+	} as const;
+
+	const zeroFoundResult = await massiveWordSearchChallenge.score({
+		...baseContext,
+		answer: { locations: [] },
+	});
+	assert.match(zeroFoundResult.barb ?? "", /^You found 0 of 10 words\. Dumbfounded is doing a lot of work here, .+\.$/);
+
+	const fiveFoundResult = await massiveWordSearchChallenge.score({
+		...baseContext,
+		answer: { locations: gradingKey.expectedLocations.slice(0, 5) },
+	});
+	assert.match(
+		fiveFoundResult.barb ?? "",
+		/^You found 5 of 10 words\. A toaster with stage fright might have done better, .+\.$/,
+	);
+
+	const nineFoundResult = await massiveWordSearchChallenge.score({
+		...baseContext,
+		answer: { locations: gradingKey.expectedLocations.slice(0, 9) },
+	});
+	assert.match(nineFoundResult.barb ?? "", /^You found 9 of 10 words\. I'm skeptical of this whole performance, .+\.$/);
+});
+
+function createWordSearchGradingKey(): WordLocationsChallengeGradingKey {
+	return {
+		answerFormat: "word_locations",
+		expectedLocations: Array.from({ length: 10 }, (_, index) => {
+			const word = `WORD${index}`;
+			return {
+				word,
+				start: { row: index, column: 0 },
+				end: { row: index, column: word.length - 1 },
+			};
+		}),
+	};
+}
 
 function readWordAtLocation(grid: string[], location: WordSearchWordLocation): string {
 	const rowStep = Math.sign(location.end.row - location.start.row);

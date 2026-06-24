@@ -78,6 +78,12 @@ class RobotCheckWidget extends HTMLElement {
     this.challengeContainer.addEventListener("click", (event) => {
       this.handleChallengeClick(event);
     });
+    this.challengeContainer.addEventListener("mousemove", (event) => {
+      this.handleChallengeHover(event);
+    });
+    this.challengeContainer.addEventListener("mouseleave", () => {
+      clearWordSearchPreview(this.challengeContainer);
+    });
   }
 
   async startVerificationFlow() {
@@ -270,6 +276,10 @@ class RobotCheckWidget extends HTMLElement {
       renderPointClickBarb(this.challengeContainer, this.state.challengePrompt);
     }
 
+    if (this.state.challengePrompt.kind === "word_search") {
+      renderWordSearchBarb(this.challengeContainer, this.state.challengePrompt);
+    }
+
     await waitFor(BARB_ANIMATION_DURATION_MS);
   }
 
@@ -317,24 +327,25 @@ class RobotCheckWidget extends HTMLElement {
 
   showSuccessMessage(message) {
     this.resultElement.textContent = message;
-    this.resultElement.classList.remove("hidden", "widget-result-error");
+    this.resultElement.classList.remove("hidden", "widget-result-error", "widget-result-barb");
     this.resultElement.classList.add("widget-result-success");
   }
 
   showErrorMessage(message) {
     this.resultElement.textContent = message;
-    this.resultElement.classList.remove("hidden", "widget-result-success");
+    this.resultElement.classList.remove("hidden", "widget-result-success", "widget-result-barb");
     this.resultElement.classList.add("widget-result-error");
   }
 
   showBarbMessage(message) {
     this.resultElement.replaceChildren(createBarbMessageFragment(message));
-    this.resultElement.classList.remove("hidden", "widget-result-success");
-    this.resultElement.classList.add("widget-result-error");
+    this.resultElement.classList.remove("hidden", "widget-result-success", "widget-result-error");
+    this.resultElement.classList.add("widget-result-barb");
   }
 
   hideResultMessage() {
     this.resultElement.classList.add("hidden");
+    this.resultElement.classList.remove("widget-result-success", "widget-result-error", "widget-result-barb");
     this.resultElement.textContent = "";
   }
 
@@ -380,6 +391,16 @@ class RobotCheckWidget extends HTMLElement {
     }
   }
 
+  handleChallengeHover(event) {
+    const wordSearchCell = event.target.closest?.(".word-search-cell");
+    if (!wordSearchCell || !this.challengeContainer.contains(wordSearchCell)) {
+      clearWordSearchPreview(this.challengeContainer);
+      return;
+    }
+
+    this.previewWordSearchLine(wordSearchCell);
+  }
+
   selectWordSearchCell(wordSearchCell) {
     const prompt = this.state.challengePrompt;
     if (!prompt || prompt.kind !== "word_search") {
@@ -404,10 +425,12 @@ class RobotCheckWidget extends HTMLElement {
 
     if (!pendingPoint) {
       setWordSearchPendingCell(gridElement, wordSearchCell, point);
+      renderWordSearchPreview(this.challengeContainer, prompt, point, point);
       return;
     }
 
     clearWordSearchPendingCell(gridElement);
+    clearWordSearchPreview(this.challengeContainer);
     const line = getWordSearchLine(prompt, pendingPoint, point);
     if (!line) {
       return;
@@ -432,6 +455,31 @@ class RobotCheckWidget extends HTMLElement {
     });
     answerInput.value = JSON.stringify(locations);
     renderWordSearchSelections(this.challengeContainer, prompt, locations);
+  }
+
+  previewWordSearchLine(wordSearchCell) {
+    const prompt = this.state.challengePrompt;
+    if (!prompt || prompt.kind !== "word_search") {
+      return;
+    }
+
+    const gridElement = this.challengeContainer.querySelector('[data-role="word-search-grid"]');
+    if (!gridElement) {
+      return;
+    }
+
+    const pendingPoint = readGridPointFromDataset({
+      row: gridElement.dataset.pendingRow,
+      column: gridElement.dataset.pendingColumn,
+    });
+    const hoverPoint = readGridPointFromDataset(wordSearchCell.dataset);
+
+    if (!pendingPoint || !hoverPoint) {
+      clearWordSearchPreview(this.challengeContainer);
+      return;
+    }
+
+    renderWordSearchPreview(this.challengeContainer, prompt, pendingPoint, hoverPoint);
   }
 
   selectPixelCell(pixelCell) {
@@ -743,6 +791,43 @@ function renderPointClickBarb(container, prompt) {
   }
 }
 
+function renderWordSearchBarb(container, prompt) {
+  const answerInput = container.querySelector("#widget-word-locations");
+  const submittedLocations = readWordSearchLocations(answerInput);
+  const foundWords = new Set();
+
+  container.querySelectorAll(".word-search-cell.is-missed-word").forEach((cell) => {
+    cell.classList.remove("is-missed-word");
+  });
+
+  for (const location of submittedLocations) {
+    const line = getWordSearchLine(prompt, location.start, location.end);
+    if (!line) {
+      continue;
+    }
+
+    const submittedWord = normalizeWordSearchWord(location.word);
+    if (submittedWord === line.word || submittedWord === line.reversedWord) {
+      foundWords.add(submittedWord);
+    }
+  }
+
+  for (const word of prompt.words) {
+    const normalizedWord = normalizeWordSearchWord(word);
+    if (foundWords.has(normalizedWord)) {
+      continue;
+    }
+
+    const missingLine = findWordSearchLineForWord(prompt, normalizedWord);
+    for (const point of missingLine?.points ?? []) {
+      const cell = container.querySelector(
+        `.word-search-cell[data-row="${point.row}"][data-column="${point.column}"]`,
+      );
+      cell?.classList.add("is-missed-word");
+    }
+  }
+}
+
 function spawnConfusedFace(pointSurface, point, prompt) {
   const face = document.createElement("span");
   face.className = "confused-face-marker";
@@ -817,6 +902,27 @@ function clearWordSearchPendingCell(gridElement) {
   });
 }
 
+function clearWordSearchPreview(container) {
+  container.querySelectorAll(".word-search-cell.is-preview").forEach((cell) => {
+    cell.classList.remove("is-preview");
+  });
+}
+
+function renderWordSearchPreview(container, prompt, start, end) {
+  clearWordSearchPreview(container);
+  const line = getWordSearchLine(prompt, start, end);
+  if (!line) {
+    return;
+  }
+
+  for (const point of line.points) {
+    const cell = container.querySelector(
+      `.word-search-cell[data-row="${point.row}"][data-column="${point.column}"]`,
+    );
+    cell?.classList.add("is-preview");
+  }
+}
+
 function readWordSearchLocations(answerInput) {
   try {
     const locations = JSON.parse(answerInput.value || "[]");
@@ -878,6 +984,37 @@ function renderWordSearchSelections(container, prompt, locations) {
   if (statusElement) {
     statusElement.textContent = `${locations.length}/${prompt.words.length} found`;
   }
+}
+
+function findWordSearchLineForWord(prompt, word) {
+  const directions = [
+    { row: -1, column: -1 },
+    { row: -1, column: 0 },
+    { row: -1, column: 1 },
+    { row: 0, column: -1 },
+    { row: 0, column: 1 },
+    { row: 1, column: -1 },
+    { row: 1, column: 0 },
+    { row: 1, column: 1 },
+  ];
+
+  for (let row = 0; row < prompt.grid.length; row += 1) {
+    const columnCount = prompt.grid[row]?.length ?? 0;
+    for (let column = 0; column < columnCount; column += 1) {
+      for (const direction of directions) {
+        const end = {
+          row: row + direction.row * (word.length - 1),
+          column: column + direction.column * (word.length - 1),
+        };
+        const line = getWordSearchLine(prompt, { row, column }, end);
+        if (line?.word === word) {
+          return line;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 function getWordSearchLine(prompt, start, end) {

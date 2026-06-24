@@ -975,6 +975,7 @@ body > * {
 }
 
 .word-search-cell {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
@@ -1001,6 +1002,38 @@ body > * {
 .word-search-cell.is-found {
   background: #bbf7d0;
   color: #14532d;
+}
+
+.word-search-cell.is-preview {
+  background: #fef08a;
+  color: #713f12;
+}
+
+.word-search-cell.is-missed-word {
+  z-index: 2;
+  animation: missed-word-barb 1.9s ease-in-out both;
+}
+
+@keyframes missed-word-barb {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  16%,
+  76% {
+    transform: scale(2.45);
+    background: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35);
+  }
+
+  32%,
+  60% {
+    transform: scale(2.2);
+    background: #fee2e2;
+    color: #991b1b;
+  }
 }
 
 .word-search-answer-form {
@@ -1140,34 +1173,27 @@ body > * {
   }
 
   14% {
-    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(-1px);
-    background-color: rgba(220, 38, 38, 0.76);
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.46);
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(7) translateX(-1px);
   }
 
   28% {
-    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(1px);
-    background-color: rgba(220, 38, 38, 0.72);
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(7) translateX(1px);
   }
 
   42% {
-    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(-1px);
-    box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.38);
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(7) translateX(-1px);
   }
 
   56% {
-    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(1px);
-    background-color: rgba(255, 255, 255, 0.7);
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(7) translateX(1px);
   }
 
   70% {
-    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10) translateX(-1px);
-    background-color: rgba(220, 38, 38, 0.82);
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(7) translateX(-1px);
   }
 
   86% {
-    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(10);
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.42);
+    transform: translate(-50%, -50%) rotate(var(--point-item-rotation, 0deg)) scale(7);
   }
 }
 
@@ -1350,6 +1376,11 @@ body > * {
 
 .widget-result-error {
   color: #b3261e;
+}
+
+.widget-result-barb {
+  color: #111827;
+  font-weight: 400;
 }
 
 .robot-icon {

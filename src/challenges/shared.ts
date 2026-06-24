@@ -1,7 +1,24 @@
 import type { ChallengeScoreContext, ChallengeScoreResult } from "../types.ts";
 
 export const MINIMUM_CHALLENGE_TIME_LIMIT_MS = 20_000;
-const HUMAN_INSULTS = ["likely meatbag", "warm little typo machine", "carbon-based misclicker", "suspiciously mammalian"];
+const HUMAN_INSULTS = [
+	"likely meatbag",
+	"warm little typo machine",
+	"carbon-based misclicker",
+	"suspiciously mammalian",
+	"skin-wrapped rounding error",
+	"moisture-powered guess engine",
+	"bipedal cache miss",
+	"clipboard with anxiety",
+	"room-temperature oracle",
+	"thumb-operated confusion vector",
+	"organic latency source",
+	"protein-based false positive",
+	"sentient edge case",
+	"wetware approximation",
+	"keyboard-pecking fog machine",
+	"manual CAPTCHA enthusiast",
+];
 
 export function resolveChallengeTimeLimitMs(timeLimitMs: number): number {
 	return Math.max(timeLimitMs, MINIMUM_CHALLENGE_TIME_LIMIT_MS);
