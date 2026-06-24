@@ -187,6 +187,7 @@ export function getChallengeMarkup(prompt) {
               >
             </label>
             <p class="muted chess-fen">FEN: <code>${escapeHtml(prompt.fen)}</code></p>
+            <div class="chess-barb-stage" data-role="chess-barb-stage" aria-hidden="true"></div>
           </div>
         </div>
       </div>
@@ -205,8 +206,8 @@ export function getChallengeMarkup(prompt) {
           ${prompt.choices
             .map(
               (choice) => `
-                <label class="${itemClass}">
-                  <input type="radio" name="widget-answer-choice" value="${escapeHtml(choice.id)}">
+                <label class="${itemClass}" data-choice-id="${escapeHtml(choice.id)}">
+                  <input type="radio" name="widget-answer-choice" value="${escapeHtml(choice.id)}" data-choice-id="${escapeHtml(choice.id)}">
                   ${prompt.layout === "grid" ? `<strong>${escapeHtml(choice.label)}</strong>` : `<span>${escapeHtml(choice.label)}</span>`}
                   ${choice.description ? `<code>${escapeHtml(choice.description)}</code>` : ""}
                 </label>

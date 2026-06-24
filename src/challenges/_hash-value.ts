@@ -1,4 +1,4 @@
-import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
+import { createBarb, createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
 import type {
 	ChallengeDefinition,
 	ChallengeStartContext,
@@ -59,18 +59,26 @@ export const hashValueChallenge = {
 		};
 	},
 	async score(context) {
-		if (wasSubmittedAfterDeadline(context)) {
-			return createFailedScore("deadline_exceeded");
-		}
-
 		const submittedDigest = normalizeHexDigest((context.answer as HexDigestChallengeAnswer | undefined)?.value ?? "");
 		const expectedDigest = normalizeHexDigest((context.gradingKey as HexDigestChallengeGradingKey).expectedHexDigest);
+
+		if (wasSubmittedAfterDeadline(context)) {
+			return {
+				...createFailedScore("deadline_exceeded"),
+				barb: createBarb("Hashing is deterministic. Your timing was not"),
+				barbContext: createHashValueBarbContext(submittedDigest, expectedDigest),
+			};
+		}
 
 		if (submittedDigest && submittedDigest === expectedDigest) {
 			return createSuccessfulScore();
 		}
 
-		return createFailedScore("incorrect_answer");
+		return {
+			...createFailedScore("incorrect_answer"),
+			barb: createHashValueBarb(submittedDigest, expectedDigest),
+			barbContext: createHashValueBarbContext(submittedDigest, expectedDigest),
+		};
 	},
 } satisfies ChallengeDefinition<
 	"hash_value",
@@ -95,4 +103,34 @@ async function createHexDigest(hashFunction: (typeof HASH_FUNCTIONS)[number], va
 
 function normalizeHexDigest(value: string): string {
 	return value.trim().replace(/\s+/g, "").toLowerCase();
+}
+
+function createHashValueBarb(submittedDigest: string, expectedDigest: string): string {
+	if (submittedDigest.length !== expectedDigest.length) {
+		return createBarb(`That digest has ${submittedDigest.length} characters. The hash function remains unimpressed`);
+	}
+
+	const firstMismatchIndex = getFirstMismatchIndex(submittedDigest, expectedDigest);
+	return createBarb(`The digest disagrees at character ${firstMismatchIndex}. Machines notice these things`);
+}
+
+function createHashValueBarbContext(submittedDigest: string, expectedDigest: string) {
+	return {
+		type: "hash_value",
+		submittedDigest,
+		expectedDigest,
+		firstMismatchIndex: getFirstMismatchIndex(submittedDigest, expectedDigest),
+	};
+}
+
+function getFirstMismatchIndex(submittedDigest: string, expectedDigest: string): number {
+	const maxLength = Math.max(submittedDigest.length, expectedDigest.length);
+
+	for (let index = 0; index < maxLength; index += 1) {
+		if (submittedDigest[index] !== expectedDigest[index]) {
+			return index;
+		}
+	}
+
+	return -1;
 }

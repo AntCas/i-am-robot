@@ -715,6 +715,13 @@
           "valueToHash": {
             "type": "string",
             "description": "Exact input value to hash when answerFormat is hex_digest."
+          },
+          "mathExpressionParts": {
+            "type": "array",
+            "description": "Ordered expression tokens for integer math prompts.",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1213,6 +1220,10 @@
           "barb": {
             "type": "string",
             "description": "Optional challenge-specific failure barb tagged with a reusable human insult."
+          },
+          "barbContext": {
+            "type": "object",
+            "description": "Optional challenge-specific metadata used by the browser widget to render barb UI."
           },
           "completedAt": {
             "type": "string",

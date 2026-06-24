@@ -62,6 +62,7 @@ export interface ShortTextChallengePrompt {
 	code?: string;
 	hashFunction?: string;
 	valueToHash?: string;
+	mathExpressionParts?: string[];
 }
 
 export interface MultipleChoiceChallengePrompt {
@@ -365,6 +366,7 @@ export interface ChallengeScoreResult {
 	verdict: Verdict;
 	reason?: string;
 	barb?: string;
+	barbContext?: Record<string, unknown>;
 }
 
 export interface ChallengeDefinition<

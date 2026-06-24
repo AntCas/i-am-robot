@@ -280,6 +280,29 @@ class RobotCheckWidget extends HTMLElement {
       renderWordSearchBarb(this.challengeContainer, this.state.challengePrompt);
     }
 
+    if (this.state.challengePrompt.kind === "short_text" && this.state.challengePrompt.answerFormat === "integer") {
+      renderTimedMathBarb(this.challengeContainer, this.state.challengePrompt);
+    }
+
+    if (
+      this.state.challengePrompt.kind === "short_text" &&
+      this.state.challengePrompt.answerFormat === "hex_digest"
+    ) {
+      renderHashValueBarb(this.challengeContainer, responseData.barbContext);
+    }
+
+    if (responseData.barbContext?.challengeType === "randomness_audit") {
+      renderRandomnessAuditBarb(this.challengeContainer, responseData.barbContext);
+    }
+
+    if (responseData.barbContext?.challengeType === "code_error") {
+      renderCodeErrorBarb(this.challengeContainer, responseData.barbContext);
+    }
+
+    if (this.state.challengePrompt.kind === "chess_puzzle") {
+      renderChessPuzzleBarb(this.challengeContainer, responseData.barbContext);
+    }
+
     await waitFor(BARB_ANIMATION_DURATION_MS);
   }
 
@@ -826,6 +849,311 @@ function renderWordSearchBarb(container, prompt) {
       cell?.classList.add("is-missed-word");
     }
   }
+}
+
+function renderTimedMathBarb(container, prompt) {
+  const input = container.querySelector("#widget-answer-input");
+  const challengeBlock = container.querySelector(".challenge-block");
+  const expressionParts = getTimedMathExpressionParts(prompt);
+  const expectedAnswer = evaluateTimedMathExpressionParts(expressionParts);
+
+  if (!challengeBlock || expressionParts.length === 0 || expectedAnswer === null) {
+    return;
+  }
+
+  container.querySelector(".timed-math-barb")?.remove();
+
+  const submittedAnswer = input?.value?.trim() || "no answer";
+  const audit = document.createElement("div");
+  audit.className = "timed-math-barb";
+  audit.setAttribute("aria-live", "polite");
+  audit.append(createTimedMathExpressionElement(expressionParts));
+
+  const comparison = document.createElement("div");
+  comparison.className = "timed-math-comparison";
+  comparison.append(createTimedMathValueElement("Submitted", submittedAnswer, "is-submitted"));
+  const operator = document.createElement("span");
+  operator.className = "timed-math-operator";
+  operator.textContent = "!=";
+  comparison.append(operator);
+  comparison.append(createTimedMathValueElement("Expected", String(expectedAnswer), "is-expected"));
+  audit.append(comparison);
+
+  challengeBlock.append(audit);
+  window.setTimeout(() => {
+    audit.classList.add("is-answer-revealed");
+  }, 650);
+}
+
+function createTimedMathExpressionElement(expressionParts) {
+  const expression = document.createElement("div");
+  expression.className = "timed-math-expression";
+
+  for (const part of expressionParts) {
+    const token = document.createElement("span");
+    token.className = Number.isFinite(Number(part)) ? "timed-math-token is-number" : "timed-math-token is-operator";
+    token.textContent = part;
+    expression.append(token);
+  }
+
+  return expression;
+}
+
+function createTimedMathValueElement(label, value, className) {
+  const wrapper = document.createElement("span");
+  wrapper.className = `timed-math-value ${className}`;
+
+  const labelElement = document.createElement("span");
+  labelElement.className = "timed-math-value-label";
+  labelElement.textContent = label;
+  wrapper.append(labelElement);
+
+  const valueElement = document.createElement("strong");
+  valueElement.textContent = value;
+  wrapper.append(valueElement);
+
+  return wrapper;
+}
+
+function getTimedMathExpressionParts(prompt) {
+  if (Array.isArray(prompt.mathExpressionParts) && prompt.mathExpressionParts.length > 0) {
+    return prompt.mathExpressionParts.map((part) => String(part));
+  }
+
+  const bodyMatch = String(prompt.body ?? "").match(/(-?\d+)\s*([*+-])\s*(-?\d+)\s*([*+-])\s*(-?\d+)/);
+  return bodyMatch ? bodyMatch.slice(1) : [];
+}
+
+function evaluateTimedMathExpressionParts(parts) {
+  if (parts.length !== 5) {
+    return null;
+  }
+
+  const firstValue = Number(parts[0]);
+  const firstOperator = parts[1];
+  const secondValue = Number(parts[2]);
+  const secondOperator = parts[3];
+  const thirdValue = Number(parts[4]);
+
+  if (!Number.isFinite(firstValue) || !Number.isFinite(secondValue) || !Number.isFinite(thirdValue)) {
+    return null;
+  }
+
+  const firstResult = applyTimedMathOperator(firstValue, firstOperator, secondValue);
+  return firstResult === null ? null : applyTimedMathOperator(firstResult, secondOperator, thirdValue);
+}
+
+function applyTimedMathOperator(leftValue, operator, rightValue) {
+  if (operator === "*") {
+    return leftValue * rightValue;
+  }
+
+  if (operator === "+") {
+    return leftValue + rightValue;
+  }
+
+  if (operator === "-") {
+    return leftValue - rightValue;
+  }
+
+  return null;
+}
+
+function renderHashValueBarb(container, barbContext) {
+  const context = normalizeHashValueBarbContext(barbContext);
+  if (!context) {
+    return;
+  }
+
+  container.querySelectorAll(".hash-value-barb").forEach((element) => element.remove());
+  const comparison = document.createElement("div");
+  comparison.className = "hash-value-barb";
+  comparison.setAttribute("aria-label", "Hash digest comparison");
+
+  const submittedRow = createDigestComparisonRow("Submitted", context.submittedDigest, context);
+  const expectedRow = createDigestComparisonRow("Expected", context.expectedDigest, context);
+  comparison.append(submittedRow, expectedRow);
+
+  if (context.submittedDigest.length !== context.expectedDigest.length) {
+    const count = document.createElement("p");
+    count.className = "hash-value-count";
+    count.textContent = `Submitted ${context.submittedDigest.length} characters; expected ${context.expectedDigest.length}.`;
+    comparison.append(count);
+  }
+
+  const challengeBlock = container.querySelector(".challenge-block") ?? container;
+  challengeBlock.append(comparison);
+}
+
+function renderChessPuzzleBarb(container, barbContext) {
+  if (!barbContext || barbContext.type !== "chess_puzzle") {
+    return;
+  }
+
+  const stage = container.querySelector('[data-role="chess-barb-stage"]');
+  const answerInput = container.querySelector("#widget-answer-input");
+  if (!stage) {
+    return;
+  }
+
+  const submittedMove = String(barbContext.submittedMove ?? answerInput?.value?.trim() ?? "").trim();
+  const expectedSan = String(barbContext.expectedSan ?? "").trim();
+  stage.replaceChildren();
+
+  if (submittedMove) {
+    const ghostMove = document.createElement("span");
+    ghostMove.className = "chess-ghost-move";
+    ghostMove.textContent = submittedMove;
+    stage.append(ghostMove);
+  }
+
+  if (barbContext.malformed) {
+    answerInput?.classList.add("chess-answer-input-bad");
+    const invalidNote = document.createElement("span");
+    invalidNote.className = "chess-invalid-note";
+    invalidNote.textContent = "invalid notation";
+    stage.append(invalidNote);
+  }
+
+  if (expectedSan) {
+    const bestMove = document.createElement("span");
+    bestMove.className = "chess-best-move-reveal";
+    bestMove.textContent = `best move: ${expectedSan}`;
+    stage.append(bestMove);
+  }
+}
+
+function normalizeHashValueBarbContext(barbContext) {
+  if (!barbContext || barbContext.type !== "hash_value") {
+    return null;
+  }
+
+  const submittedDigest = String(barbContext.submittedDigest ?? "");
+  const expectedDigest = String(barbContext.expectedDigest ?? "");
+  const firstMismatchIndex = Number(barbContext.firstMismatchIndex);
+
+  return {
+    submittedDigest,
+    expectedDigest,
+    firstMismatchIndex: Number.isSafeInteger(firstMismatchIndex) ? firstMismatchIndex : getFirstDigestMismatchIndex(submittedDigest, expectedDigest),
+  };
+}
+
+function createDigestComparisonRow(label, digest, context) {
+  const row = document.createElement("div");
+  row.className = "hash-value-row";
+
+  const labelElement = document.createElement("span");
+  labelElement.className = "hash-value-label";
+  labelElement.textContent = label;
+
+  const valueElement = document.createElement("code");
+  valueElement.className = "hash-value-digest";
+  appendDigestWindow(valueElement, digest, context.firstMismatchIndex, Math.max(context.submittedDigest.length, context.expectedDigest.length));
+
+  row.append(labelElement, valueElement);
+  return row;
+}
+
+function appendDigestWindow(valueElement, digest, firstMismatchIndex, comparisonLength) {
+  const windowRadius = 10;
+  const focusIndex = firstMismatchIndex >= 0 ? firstMismatchIndex : 0;
+  const start = Math.max(0, focusIndex - windowRadius);
+  const end = Math.min(comparisonLength, focusIndex + windowRadius + 1);
+
+  if (start > 0) {
+    valueElement.append(createDigestEllipsis());
+  }
+
+  for (let index = start; index < end; index += 1) {
+    const character = digest[index] ?? "-";
+    const characterElement = document.createElement("span");
+    characterElement.textContent = character;
+    if (index === firstMismatchIndex) {
+      characterElement.className = "hash-value-mismatch";
+    }
+    valueElement.append(characterElement);
+  }
+
+  if (end < comparisonLength) {
+    valueElement.append(createDigestEllipsis());
+  }
+}
+
+function createDigestEllipsis() {
+  const ellipsis = document.createElement("span");
+  ellipsis.className = "hash-value-ellipsis";
+  ellipsis.textContent = "...";
+  return ellipsis;
+}
+
+function getFirstDigestMismatchIndex(submittedDigest, expectedDigest) {
+  const maxLength = Math.max(submittedDigest.length, expectedDigest.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    if (submittedDigest[index] !== expectedDigest[index]) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function renderRandomnessAuditBarb(container, barbContext) {
+  const submittedChoice = findChoiceElement(container, barbContext?.submittedChoiceId);
+  const expectedChoice = findChoiceElement(container, barbContext?.expectedChoiceId);
+
+  if (submittedChoice && submittedChoice !== expectedChoice) {
+    submittedChoice.classList.add("choice-card-human-pattern");
+    const codeElement = submittedChoice.querySelector("code");
+    if (hasRepeatedBitRun(codeElement?.textContent ?? "")) {
+      codeElement?.classList.add("choice-bits-repeated-run");
+    }
+  }
+
+  if (expectedChoice) {
+    window.setTimeout(() => {
+      expectedChoice.classList.add("choice-card-correct-reveal");
+    }, Math.floor(BARB_ANIMATION_DURATION_MS * 0.42));
+  }
+}
+
+function renderCodeErrorBarb(container, barbContext) {
+  const selectedChoice = container.querySelector('input[name="widget-answer-choice"]:checked')?.closest?.(
+    ".choice-card, .choice-line",
+  );
+  const expectedChoice = findChoiceElement(container, barbContext?.expectedChoiceId);
+
+  if (selectedChoice && selectedChoice !== expectedChoice) {
+    selectedChoice.classList.add("choice-code-error-wrong");
+  }
+
+  container.querySelectorAll(".choice-card, .choice-line").forEach((choiceElement) => {
+    if (choiceElement !== expectedChoice && choiceElement !== selectedChoice) {
+      choiceElement.classList.add("choice-code-error-dimmed");
+    }
+  });
+
+  if (expectedChoice) {
+    window.setTimeout(() => {
+      expectedChoice.classList.add("choice-code-error-correct");
+    }, Math.floor(BARB_ANIMATION_DURATION_MS * 0.42));
+  }
+}
+
+function findChoiceElement(container, choiceId) {
+  if (!choiceId) {
+    return null;
+  }
+
+  const escapedChoiceId = cssAttributeEscape(choiceId);
+  return container.querySelector(
+    `.choice-card[data-choice-id="${escapedChoiceId}"], .choice-line[data-choice-id="${escapedChoiceId}"]`,
+  );
+}
+
+function hasRepeatedBitRun(value) {
+  return /([01])\1{2,}|(0101|1010)/.test(value);
 }
 
 function spawnConfusedFace(pointSurface, point, prompt) {

@@ -770,6 +770,120 @@ test("hash value grading accepts hexadecimal digests case-insensitively", async 
 	assert.equal(scoreResult.verdict, "robot");
 });
 
+test("hash value grading returns barbs for wrong digests", async () => {
+	const startedChallenge = await hashValueChallenge.start({
+		siteKey: "site_demo_123",
+		hostname: "castrio.me",
+		now: new Date(),
+	});
+	const gradingKey = startedChallenge.gradingKey;
+	if (gradingKey.answerFormat !== "hex_digest") {
+		throw new Error("Expected hash value to use hex digest grading");
+	}
+
+	const lengthResult = await hashValueChallenge.score({
+		promptPayload: startedChallenge.promptPayload,
+		gradingKey,
+		answer: { value: "abc" },
+		submittedAt: new Date(),
+		deadlineAt: new Date(Date.now() + 5000),
+	});
+	assert.equal(lengthResult.reason, "incorrect_answer");
+	assert.match(lengthResult.barb ?? "", /^That digest has 3 characters\. The hash function remains unimpressed, .+\.$/);
+	assert.deepEqual(lengthResult.barbContext, {
+		type: "hash_value",
+		submittedDigest: "abc",
+		expectedDigest: gradingKey.expectedHexDigest,
+		firstMismatchIndex: 0,
+	});
+
+	const wrongFirstCharacter = gradingKey.expectedHexDigest[0] === "f" ? "0" : "f";
+	const wrongSameLengthDigest = `${wrongFirstCharacter}${gradingKey.expectedHexDigest.slice(1)}`;
+	const mismatchResult = await hashValueChallenge.score({
+		promptPayload: startedChallenge.promptPayload,
+		gradingKey,
+		answer: { value: wrongSameLengthDigest },
+		submittedAt: new Date(),
+		deadlineAt: new Date(Date.now() + 5000),
+	});
+	assert.match(mismatchResult.barb ?? "", /^The digest disagrees at character 0\. Machines notice these things, .+\.$/);
+	assert.deepEqual(mismatchResult.barbContext, {
+		type: "hash_value",
+		submittedDigest: wrongSameLengthDigest,
+		expectedDigest: gradingKey.expectedHexDigest,
+		firstMismatchIndex: 0,
+	});
+});
+
+test("hash value grading returns a deadline barb", async () => {
+	const startedChallenge = await hashValueChallenge.start({
+		siteKey: "site_demo_123",
+		hostname: "castrio.me",
+		now: new Date(),
+	});
+	const gradingKey = startedChallenge.gradingKey;
+	if (gradingKey.answerFormat !== "hex_digest") {
+		throw new Error("Expected hash value to use hex digest grading");
+	}
+
+	const scoreResult = await hashValueChallenge.score({
+		promptPayload: startedChallenge.promptPayload,
+		gradingKey,
+		answer: { value: "" },
+		submittedAt: new Date("2026-06-24T18:00:01Z"),
+		deadlineAt: new Date("2026-06-24T18:00:00Z"),
+	});
+
+	assert.equal(scoreResult.reason, "deadline_exceeded");
+	assert.match(scoreResult.barb ?? "", /^Hashing is deterministic\. Your timing was not, .+\.$/);
+	assert.deepEqual(scoreResult.barbContext, {
+		type: "hash_value",
+		submittedDigest: "",
+		expectedDigest: gradingKey.expectedHexDigest,
+		firstMismatchIndex: 0,
+	});
+});
+
+test("demo hash value failure returns barb comparison context", async () => {
+	const env = createEnv();
+	const startResponse = await handleChallengeStartRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/start", {
+			siteKey: "site_demo_123",
+			hostname: "castrio.me",
+			mode: "widget",
+			demoChallenge: "hash_value",
+		}),
+		env as never,
+	);
+
+	assert.equal(startResponse.status, 200);
+	const startData = await readJson(startResponse);
+	const challengeSession = await loadChallengeSession(env as never, startData.sessionId);
+	if (!challengeSession || challengeSession.gradingKey.answerFormat !== "hex_digest") {
+		throw new Error("Expected hash value session");
+	}
+
+	const submitResponse = await handleChallengeSubmitRequest(
+		createJsonRequest("https://robot.example/im-a-robot/api/challenge/submit", {
+			sessionId: startData.sessionId,
+			answer: { value: "abc" },
+		}),
+		env as never,
+	);
+
+	assert.equal(submitResponse.status, 200);
+	const submitData = await readJson(submitResponse);
+	assert.equal(submitData.success, false);
+	assert.equal(submitData.reason, "incorrect_answer");
+	assert.match(submitData.barb, /^That digest has 3 characters\. The hash function remains unimpressed, .+\.$/);
+	assert.deepEqual(submitData.barbContext, {
+		type: "hash_value",
+		submittedDigest: "abc",
+		expectedDigest: challengeSession.gradingKey.expectedHexDigest,
+		firstMismatchIndex: 0,
+	});
+});
+
 test("message board accepts verified posts and returns them to public readers", async () => {
 	const originalMathRandom = Math.random;
 	Math.random = () => 0;

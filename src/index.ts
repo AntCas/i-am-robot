@@ -334,6 +334,7 @@ export async function handleChallengeSubmitRequest(request: Request, env: Env): 
 			verdict: "failed",
 			reason: scoreResult.reason ?? "incorrect_answer",
 			barb: scoreResult.barb,
+			barbContext: scoreResult.barbContext,
 			completedAt,
 			verificationSessionId: verificationSession.id,
 			verification: createVerificationProgressPayload(failedVerificationSession),

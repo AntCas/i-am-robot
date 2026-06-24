@@ -171,6 +171,7 @@ test("getChallengeMarkup renders choice descriptions for grid multiple choice pr
 	assert.match(markup, /Pick the PRNG string\./);
 	assert.match(markup, /010101/);
 	assert.match(markup, /choice-card/);
+	assert.match(markup, /data-choice-id="A"/);
 });
 
 test("getChallengeMarkup renders hash short_text prompts with the value to hash", () => {
@@ -189,6 +190,21 @@ test("getChallengeMarkup renders hash short_text prompts with the value to hash"
 	assert.match(markup, /lowercase hex digest/);
 });
 
+test("getChallengeMarkup renders timed math prompts with expression metadata ignored by visible copy", () => {
+	const markup = getChallengeMarkup({
+		kind: "short_text",
+		answerFormat: "integer",
+		instruction: "Solve the expression.",
+		body: "What is 17 * 23 + 9?",
+		inputLabel: "Answer",
+		mathExpressionParts: ["17", "*", "23", "+", "9"],
+	});
+
+	assert.match(markup, /Solve the expression\./);
+	assert.match(markup, /What is 17 \* 23 \+ 9\?/);
+	assert.doesNotMatch(markup, /mathExpressionParts/);
+});
+
 test("getChallengeMarkup renders a chess board and FEN for chess prompts", () => {
 	const markup = getChallengeMarkup({
 		kind: "chess_puzzle",
@@ -205,6 +221,7 @@ test("getChallengeMarkup renders a chess board and FEN for chess prompts", () =>
 	assert.match(markup, /position="6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1"/);
 	assert.match(markup, /FEN: <code>6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1 w - - 0 1<\/code>/);
 	assert.match(markup, /FEN:/);
+	assert.match(markup, /data-role="chess-barb-stage"/);
 });
 
 test("getChallengeMarkup renders word search prompts", () => {

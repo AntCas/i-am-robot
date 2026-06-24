@@ -1,4 +1,4 @@
-import { createFailedScore, createShuffledCopy, createSuccessfulScore, wasSubmittedAfterDeadline } from "./shared.ts";
+import { createBarb, createFailedScore, createShuffledCopy, createSuccessfulScore, wasSubmittedAfterDeadline } from "./shared.ts";
 import type {
 	ChallengeDefinition,
 	ChallengeStartContext,
@@ -61,7 +61,10 @@ export const randomnessAuditChallenge = {
 	},
 	async score(context) {
 		if (wasSubmittedAfterDeadline(context)) {
-			return createFailedScore("deadline_exceeded");
+			return {
+				...createFailedScore("deadline_exceeded"),
+				barb: createBarb("Randomness expired before your intuition booted"),
+			};
 		}
 
 		const submittedLabel = String((context.answer as ChoiceChallengeAnswer | undefined)?.choiceId ?? "");
@@ -71,7 +74,15 @@ export const randomnessAuditChallenge = {
 			return createSuccessfulScore();
 		}
 
-		return createFailedScore("incorrect_answer");
+		return {
+			...createFailedScore("incorrect_answer"),
+			barb: createRandomnessAuditBarb(context.promptPayload, submittedLabel, expectedLabel),
+			barbContext: {
+				challengeType: "randomness_audit",
+				expectedChoiceId: expectedLabel,
+				submittedChoiceId: submittedLabel,
+			},
+		};
 	},
 } satisfies ChallengeDefinition<
 	"randomness_audit",
@@ -158,6 +169,23 @@ function createHumanLikeBits(length: number): string {
 	}
 
 	return result;
+}
+
+function createRandomnessAuditBarb(
+	prompt: MultipleChoiceChallengePrompt,
+	submittedLabel: string,
+	expectedLabel: string,
+): string {
+	const submittedChoice = prompt.choices.find((choice) => choice.id === submittedLabel);
+	if (submittedChoice && submittedChoice.id !== expectedLabel && isHumanPattern(submittedChoice.description ?? "")) {
+		return createBarb("That pattern has fingerprints all over it");
+	}
+
+	return createBarb("You selected the human-looking entropy. Familiar, perhaps");
+}
+
+function isHumanPattern(bits: string): boolean {
+	return /([01])\1{2,}/.test(bits) || /(0101|1010)/.test(bits);
 }
 
 function countTrailingCharacters(value: string, targetCharacter: string): number {

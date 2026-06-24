@@ -1,4 +1,4 @@
-import { createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
+import { createBarb, createFailedScore, createSuccessfulScore, getRandomInteger, wasSubmittedAfterDeadline } from "./shared.ts";
 import type {
 	ChallengeDefinition,
 	ChallengeStartContext,
@@ -23,6 +23,7 @@ export const timedMathChallenge = {
 				instruction: "Solve the expression.",
 				body: "What is 17 * 23 + 9?",
 				inputLabel: "Answer",
+				mathExpressionParts: ["17", "*", "23", "+", "9"],
 			},
 			answer: { value: "400" },
 		},
@@ -32,6 +33,7 @@ export const timedMathChallenge = {
 		const firstFactor = getRandomInteger(120, 999);
 		const secondFactor = getRandomInteger(20, 99);
 		const addend = getRandomInteger(11, 89);
+		const mathExpressionParts = [String(firstFactor), "*", String(secondFactor), "+", String(addend)];
 
 		return {
 			promptPayload: {
@@ -40,6 +42,7 @@ export const timedMathChallenge = {
 				instruction: "Solve the expression.",
 				body: `What is ${firstFactor} * ${secondFactor} + ${addend}?`,
 				inputLabel: "Answer",
+				mathExpressionParts,
 			},
 			gradingKey: {
 				answerFormat: "integer",
@@ -50,7 +53,10 @@ export const timedMathChallenge = {
 	},
 	async score(context) {
 		if (wasSubmittedAfterDeadline(context)) {
-			return createFailedScore("deadline_exceeded");
+			return {
+				...createFailedScore("deadline_exceeded"),
+				barb: createBarb("The numbers waited patiently. You did not"),
+			};
 		}
 
 		const submittedAnswer = Number((context.answer as IntegerChallengeAnswer | undefined)?.value);
@@ -60,6 +66,21 @@ export const timedMathChallenge = {
 			return createSuccessfulScore();
 		}
 
-		return createFailedScore("incorrect_answer");
+		return {
+			...createFailedScore("incorrect_answer"),
+			barb: createTimedMathBarb(submittedAnswer, expectedAnswer),
+		};
 	},
 } satisfies ChallengeDefinition<"timed_math", ShortTextChallengePrompt, IntegerChallengeGradingKey, IntegerChallengeAnswer>;
+
+function createTimedMathBarb(submittedAnswer: number, expectedAnswer: number): string {
+	if (Number.isFinite(submittedAnswer)) {
+		const delta = Math.abs(submittedAnswer - expectedAnswer);
+
+		if (delta > 0 && delta <= 10) {
+			return createBarb(`Off by ${delta}. Tragic, but at least numerically adjacent`);
+		}
+	}
+
+	return createBarb("Arithmetic has declined since humans got calculators");
+}

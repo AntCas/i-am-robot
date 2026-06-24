@@ -1,4 +1,5 @@
 import {
+	createBarb,
 	createFailedScore,
 	createShuffledCopy,
 	createSuccessfulScore,
@@ -86,17 +87,41 @@ export const codeErrorChallenge = {
 		};
 	},
 	async score(context) {
+		const expectedChoice = (context.gradingKey as ChoiceChallengeGradingKey).expectedChoiceId;
+
 		if (wasSubmittedAfterDeadline(context)) {
-			return createFailedScore("deadline_exceeded");
+			return createCodeErrorFailure("deadline_exceeded", "The stack trace aged into archaeology", expectedChoice);
 		}
 
 		const submittedChoice = String((context.answer as ChoiceChallengeAnswer | undefined)?.choiceId ?? "");
-		const expectedChoice = (context.gradingKey as ChoiceChallengeGradingKey).expectedChoiceId;
 
 		if (submittedChoice === expectedChoice) {
 			return createSuccessfulScore();
 		}
 
-		return createFailedScore("incorrect_answer");
+		if (!submittedChoice) {
+			return createCodeErrorFailure(
+				"incorrect_answer",
+				"No diagnosis submitted. Very collaborative of you",
+				expectedChoice,
+			);
+		}
+
+		return createCodeErrorFailure(
+			"incorrect_answer",
+			"The bug survived your review. It has requested seniority",
+			expectedChoice,
+		);
 	},
 } satisfies ChallengeDefinition<"code_error", MultipleChoiceChallengePrompt, ChoiceChallengeGradingKey, ChoiceChallengeAnswer>;
+
+function createCodeErrorFailure(reason: string, barbMessage: string, expectedChoiceId: string) {
+	return {
+		...createFailedScore(reason),
+		barb: createBarb(barbMessage),
+		barbContext: {
+			challengeType: "code_error",
+			expectedChoiceId,
+		},
+	};
+}
