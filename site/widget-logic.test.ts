@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+	buildSanFromBoardMove,
 	createStartChallengeRequestBody,
 	formatApiExchange,
 	getCountdownPressureProgress,
@@ -374,6 +375,58 @@ test("formatApiExchange includes a response section when provided", () => {
 
 	assert.match(markup, /Response/);
 	assert.match(markup, /&quot;reason&quot;: &quot;incorrect_answer&quot;/);
+});
+
+test("buildSanFromBoardMove builds piece, capture, and castling SAN", () => {
+	assert.equal(buildSanFromBoardMove({ piece: "wR", source: "a1", target: "a8", capture: false }), "Ra8");
+	assert.equal(buildSanFromBoardMove({ piece: "wQ", source: "g5", target: "g7", capture: true }), "Qxg7");
+	assert.equal(buildSanFromBoardMove({ piece: "wP", source: "e2", target: "e4", capture: false }), "e4");
+	assert.equal(buildSanFromBoardMove({ piece: "wP", source: "e4", target: "d5", capture: true }), "exd5");
+	assert.equal(buildSanFromBoardMove({ piece: "wK", source: "e1", target: "g1", capture: false }), "O-O");
+	assert.equal(buildSanFromBoardMove({ piece: "wK", source: "e1", target: "c1", capture: false }), "O-O-O");
+});
+
+test("buildSanFromBoardMove rejects non-moves", () => {
+	assert.equal(buildSanFromBoardMove({ piece: "wQ", source: "g5", target: "g5", capture: false }), null);
+	assert.equal(buildSanFromBoardMove({ piece: "", source: "a1", target: "a8", capture: false }), null);
+	assert.equal(buildSanFromBoardMove({}), null);
+});
+
+test("buildSanFromBoardMove output matches the answer bank SAN for each puzzle", async () => {
+	const bank = (await import("../src/challenges/_chess-puzzle.ts.answerbank.json", { with: { type: "json" } })).default as Array<{
+		fen: string;
+		expectedSan: string;
+		from: string;
+		to: string;
+	}>;
+
+	for (const puzzle of bank) {
+		const board = new Map<string, string>();
+		const ranks = puzzle.fen.split(/\s+/)[0].split("/");
+		ranks.forEach((rank, rankIndex) => {
+			let fileIndex = 0;
+			for (const character of rank) {
+				if (/[1-8]/.test(character)) {
+					fileIndex += Number.parseInt(character, 10);
+					continue;
+				}
+				const square = String.fromCharCode(97 + fileIndex) + String(8 - rankIndex);
+				board.set(square, character);
+				fileIndex += 1;
+			}
+		});
+
+		const movingPiece = board.get(puzzle.from)!;
+		const san = buildSanFromBoardMove({
+			piece: `w${movingPiece.toUpperCase()}`,
+			source: puzzle.from,
+			target: puzzle.to,
+			capture: board.has(puzzle.to),
+		});
+
+		const normalize = (value: string) => value.replace(/[+#!?]+$/g, "");
+		assert.equal(san, normalize(puzzle.expectedSan), `${puzzle.from}->${puzzle.to} should equal ${puzzle.expectedSan}`);
+	}
 });
 
 test("resolveWidgetConfig defaults docsPath from app base path", () => {

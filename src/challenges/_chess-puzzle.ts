@@ -11,6 +11,8 @@ import chessPuzzleAnswerBank from "./_chess-puzzle.ts.answerbank.json" with { ty
 interface ChessPuzzleRecord {
 	fen: string;
 	expectedSan: string;
+	from: string;
+	to: string;
 }
 
 const CHESS_PUZZLES = chessPuzzleAnswerBank as ChessPuzzleRecord[];
@@ -56,6 +58,8 @@ export const chessPuzzleChallenge = {
 			gradingKey: {
 				answerFormat: "san",
 				expectedSan: puzzle.expectedSan,
+				expectedFrom: puzzle.from,
+				expectedTo: puzzle.to,
 			},
 			timeLimitMs: CHESS_PUZZLE_TIME_LIMIT_MS,
 		};
@@ -63,13 +67,14 @@ export const chessPuzzleChallenge = {
 	async score(context) {
 		const submittedValue = (context.answer as SanChallengeAnswer | undefined)?.value ?? "";
 		const submittedMove = submittedValue.trim();
-		const expectedMove = (context.gradingKey as SanChallengeGradingKey).expectedSan;
+		const gradingKey = context.gradingKey as SanChallengeGradingKey;
+		const expectedMove = gradingKey.expectedSan;
 
 		if (wasSubmittedAfterDeadline(context)) {
 			return {
 				...createFailedScore("deadline_exceeded"),
 				barb: createBarb("White to move. Eventually. Apparently"),
-				barbContext: createChessBarbContext(submittedMove, expectedMove, !isPlausibleSan(submittedMove)),
+				barbContext: createChessBarbContext(submittedMove, gradingKey, !isPlausibleSan(submittedMove)),
 			};
 		}
 
@@ -84,14 +89,14 @@ export const chessPuzzleChallenge = {
 			return {
 				...createFailedScore("incorrect_answer"),
 				barb: createBarb("That is not SAN. That is keyboard fog"),
-				barbContext: createChessBarbContext(submittedMove, expectedMove, true),
+				barbContext: createChessBarbContext(submittedMove, gradingKey, true),
 			};
 		}
 
 		return {
 			...createFailedScore("incorrect_answer"),
 			barb: createBarb(`${submittedMove} is legal-looking theater, not the best move`),
-			barbContext: createChessBarbContext(submittedMove, expectedMove, false),
+			barbContext: createChessBarbContext(submittedMove, gradingKey, false),
 		};
 	},
 } satisfies ChallengeDefinition<"chess_puzzle", ChessPuzzleChallengePrompt, SanChallengeGradingKey, SanChallengeAnswer>;
@@ -117,11 +122,17 @@ function isPlausibleSan(value: string): boolean {
 	return /^(?:[KQRBN])?(?:[a-h]|[1-8])?x?[a-h][1-8](?:=[QRBN])?[+#]?[!?]*$/.test(move);
 }
 
-function createChessBarbContext(submittedMove: string, expectedMove: string, malformed: boolean): Record<string, unknown> {
+function createChessBarbContext(
+	submittedMove: string,
+	gradingKey: SanChallengeGradingKey,
+	malformed: boolean,
+): Record<string, unknown> {
 	return {
 		type: "chess_puzzle",
 		submittedMove,
-		expectedSan: expectedMove,
+		expectedSan: gradingKey.expectedSan,
+		expectedFrom: gradingKey.expectedFrom ?? null,
+		expectedTo: gradingKey.expectedTo ?? null,
 		malformed,
 	};
 }

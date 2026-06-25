@@ -1,9 +1,11 @@
 import {
+  buildSanFromBoardMove,
   createInitialWidgetState,
   createStartChallengeRequestBody,
   createSubmitChallengeRequestBody,
   formatApiExchange,
   formatRemainingSeconds,
+  getChessBoardPosition,
   getCountdownPressureProgress,
   getAnswerForPrompt,
   getChallengeMarkup,
@@ -258,6 +260,7 @@ class RobotCheckWidget extends HTMLElement {
       this.challengeContainer.innerHTML = getChallengeMarkup(responseData.challenge.prompt, this.state.config.appBasePath);
       if (responseData.challenge.prompt.kind === "chess_puzzle") {
         await chessBoardComponentReady;
+        this.attachChessInteraction();
       }
       this.challengeTypeElement.textContent = getProgressLabel(
         this.state.successfulChallenges,
@@ -317,7 +320,7 @@ class RobotCheckWidget extends HTMLElement {
     }
 
     if (this.state.challengePrompt.kind === "chess_puzzle") {
-      renderChessPuzzleBarb(this.challengeContainer, responseData.barbContext);
+      renderChessPuzzleBarb(this.challengeContainer, responseData.barbContext, this.state.challengePrompt);
     }
 
     await waitFor(BARB_HOLD_DURATION_MS);
@@ -541,6 +544,51 @@ class RobotCheckWidget extends HTMLElement {
     if (pointInput) {
       pointInput.value = JSON.stringify({ row, column });
     }
+  }
+
+  attachChessInteraction() {
+    const board = this.challengeContainer.querySelector("chess-board");
+    if (!board) {
+      return;
+    }
+
+    board.addEventListener("drag-start", (event) => {
+      const piece = event.detail?.piece;
+      // Only white (the side to move) may be dragged, and only while a
+      // challenge is live.
+      if (this.state.verified || !this.state.sessionId || !piece || piece[0] !== "w") {
+        event.preventDefault();
+      }
+    });
+
+    board.addEventListener("drop", (event) => {
+      const detail = event.detail ?? {};
+      const { source, target, piece, oldPosition } = detail;
+      if (!target || target === "offboard" || source === target) {
+        detail.setAction?.("snapback");
+        return;
+      }
+
+      const san = buildSanFromBoardMove({
+        piece,
+        source,
+        target,
+        capture: Boolean(oldPosition?.[target]),
+      });
+      if (!san) {
+        detail.setAction?.("snapback");
+        return;
+      }
+
+      const answerInput = this.challengeContainer.querySelector("#widget-answer-input");
+      if (answerInput) {
+        answerInput.value = san;
+      }
+      // Submit once the drop has settled so the answer input is read back.
+      window.setTimeout(() => {
+        void this.submitCurrentAnswer();
+      }, 0);
+    });
   }
 
   togglePointSelection(event, pointSurface) {
@@ -1073,7 +1121,7 @@ function renderHashValueBarb(container, barbContext) {
   challengeBlock.append(comparison);
 }
 
-function renderChessPuzzleBarb(container, barbContext) {
+function renderChessPuzzleBarb(container, barbContext, prompt) {
   if (!barbContext || barbContext.type !== "chess_puzzle") {
     return;
   }
@@ -1109,6 +1157,31 @@ function renderChessPuzzleBarb(container, barbContext) {
     bestMove.textContent = `best move: ${expectedSan}`;
     stage.append(bestMove);
   }
+
+  animateChessBestMove(container.querySelector("chess-board"), prompt, barbContext);
+}
+
+function animateChessBestMove(board, prompt, barbContext) {
+  if (!board || typeof board.setPosition !== "function" || typeof board.move !== "function") {
+    return;
+  }
+
+  const from = String(barbContext.expectedFrom ?? "").trim();
+  const to = String(barbContext.expectedTo ?? "").trim();
+  if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to)) {
+    return;
+  }
+
+  // Undo any move the player dragged out, then animate the correct move so the
+  // barb always demonstrates the real solution for this exact position.
+  if (prompt?.fen) {
+    board.setPosition(getChessBoardPosition(prompt.fen), false);
+  }
+
+  board.classList.add("chess-board-revealing");
+  window.setTimeout(() => {
+    board.move(`${from}-${to}`);
+  }, 120);
 }
 
 function normalizeHashValueBarbContext(barbContext) {

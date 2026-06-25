@@ -169,6 +169,8 @@ export interface ChoiceChallengeGradingKey {
 export interface SanChallengeGradingKey {
 	answerFormat: "san";
 	expectedSan: string;
+	expectedFrom?: string;
+	expectedTo?: string;
 }
 
 export interface HexDigestChallengeGradingKey {

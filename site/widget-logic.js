@@ -227,8 +227,10 @@ export function getChallengeMarkup(prompt, appBasePath = "") {
             class="challenge-chess-board"
             position="${escapeHtml(boardPosition)}"
             orientation="${escapeHtml(prompt.orientation)}"
+            draggable-pieces
           ></chess-board>
           <div class="chess-puzzle-copy">
+            <p class="muted chess-move-hint">Drag a piece to play your move, or type it below.</p>
             <label>
               ${escapeHtml(prompt.inputLabel)}
               <input
@@ -586,8 +588,36 @@ function parseGridPointObject(point) {
   return { row, column };
 }
 
-function getChessBoardPosition(fen) {
+export function getChessBoardPosition(fen) {
   return String(fen).trim().split(/\s+/, 1)[0] ?? "";
+}
+
+// Builds standard algebraic notation for a board move so a click/drag can be
+// submitted like a typed answer. The check/mate suffix is intentionally
+// omitted because the server normalizes it away before grading.
+export function buildSanFromBoardMove({ piece, source, target, capture } = {}) {
+  if (!piece || !source || !target || source === target) {
+    return null;
+  }
+
+  const pieceType = String(piece).slice(1, 2).toUpperCase();
+  if (!pieceType) {
+    return null;
+  }
+
+  if (pieceType === "K" && source === "e1" && target === "g1") {
+    return "O-O";
+  }
+
+  if (pieceType === "K" && source === "e1" && target === "c1") {
+    return "O-O-O";
+  }
+
+  if (pieceType === "P") {
+    return capture ? `${source[0]}x${target}` : target;
+  }
+
+  return `${pieceType}${capture ? "x" : ""}${target}`;
 }
 
 function normalizeAppBasePath(value) {

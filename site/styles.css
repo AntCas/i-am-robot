@@ -1269,6 +1269,18 @@ body > * {
 .challenge-chess-board {
   display: block;
   width: min(100%, 320px);
+  cursor: grab;
+}
+
+.challenge-chess-board.chess-board-revealing {
+  cursor: default;
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.55);
+  transition: box-shadow 200ms ease;
+}
+
+.chess-move-hint {
+  margin: 0;
 }
 
 .chess-puzzle-copy {

@@ -7,6 +7,8 @@ import chessPuzzleAnswerBank from "./_chess-puzzle.ts.answerbank.json" with { ty
 interface ChessPuzzleRecord {
 	fen: string;
 	expectedSan: string;
+	from: string;
+	to: string;
 }
 
 const CHESS_PUZZLES = chessPuzzleAnswerBank as ChessPuzzleRecord[];
@@ -51,10 +53,46 @@ test("chess puzzle answer bank only contains valid white-to-move FEN positions",
 	}
 });
 
+test("every chess puzzle has a from/to that matches a legal white move to the expected square", () => {
+	for (const puzzle of CHESS_PUZZLES) {
+		assert.match(puzzle.from ?? "", /^[a-h][1-8]$/, `Expected a from square for ${puzzle.expectedSan}`);
+		assert.match(puzzle.to ?? "", /^[a-h][1-8]$/, `Expected a to square for ${puzzle.expectedSan}`);
+
+		const board = parseFenPlacement(puzzle.fen);
+		const movingPiece = board.get(puzzle.from);
+		assert.ok(movingPiece, `Expected a piece on ${puzzle.from} for ${puzzle.expectedSan}`);
+		assert.ok(movingPiece === movingPiece?.toUpperCase(), `Expected a white piece to move for ${puzzle.expectedSan}`);
+
+		// The expected SAN's destination square must equal the recorded "to" square.
+		const sanDestination = puzzle.expectedSan.replace(/[+#!?]+$/g, "").slice(-2);
+		assert.equal(sanDestination, puzzle.to, `SAN destination should match "to" for ${puzzle.expectedSan}`);
+	}
+});
+
+function parseFenPlacement(fen: string): Map<string, string> {
+	const board = new Map<string, string>();
+	const ranks = fen.trim().split(/\s+/)[0]?.split("/") ?? [];
+	ranks.forEach((rank, rankIndex) => {
+		let fileIndex = 0;
+		for (const character of rank) {
+			if (/[1-8]/.test(character)) {
+				fileIndex += Number.parseInt(character, 10);
+				continue;
+			}
+
+			const square = String.fromCharCode("a".charCodeAt(0) + fileIndex) + String(8 - rankIndex);
+			board.set(square, character);
+			fileIndex += 1;
+		}
+	});
+
+	return board;
+}
+
 test("chess puzzle wrong move returns a legal-looking barb", async () => {
 	const scoreResult = await chessPuzzleChallenge.score({
 		promptPayload: createPromptPayload(),
-		gradingKey: { answerFormat: "san", expectedSan: "Rb8#" },
+		gradingKey: { answerFormat: "san", expectedSan: "Rb8#", expectedFrom: "b1", expectedTo: "b8" },
 		answer: { value: "Ra8" },
 		submittedAt: new Date("2026-06-24T12:00:00.000Z"),
 		deadlineAt: new Date("2026-06-24T12:00:05.000Z"),
@@ -67,6 +105,8 @@ test("chess puzzle wrong move returns a legal-looking barb", async () => {
 		type: "chess_puzzle",
 		submittedMove: "Ra8",
 		expectedSan: "Rb8#",
+		expectedFrom: "b1",
+		expectedTo: "b8",
 		malformed: false,
 	});
 });
@@ -74,7 +114,7 @@ test("chess puzzle wrong move returns a legal-looking barb", async () => {
 test("chess puzzle malformed move returns a notation barb", async () => {
 	const scoreResult = await chessPuzzleChallenge.score({
 		promptPayload: createPromptPayload(),
-		gradingKey: { answerFormat: "san", expectedSan: "Rb8#" },
+		gradingKey: { answerFormat: "san", expectedSan: "Rb8#", expectedFrom: "b1", expectedTo: "b8" },
 		answer: { value: "not chess" },
 		submittedAt: new Date("2026-06-24T12:00:00.000Z"),
 		deadlineAt: new Date("2026-06-24T12:00:05.000Z"),
@@ -87,6 +127,8 @@ test("chess puzzle malformed move returns a notation barb", async () => {
 		type: "chess_puzzle",
 		submittedMove: "not chess",
 		expectedSan: "Rb8#",
+		expectedFrom: "b1",
+		expectedTo: "b8",
 		malformed: true,
 	});
 });
@@ -94,7 +136,7 @@ test("chess puzzle malformed move returns a notation barb", async () => {
 test("chess puzzle deadline returns a deadline barb", async () => {
 	const scoreResult = await chessPuzzleChallenge.score({
 		promptPayload: createPromptPayload(),
-		gradingKey: { answerFormat: "san", expectedSan: "Rb8#" },
+		gradingKey: { answerFormat: "san", expectedSan: "Rb8#", expectedFrom: "b1", expectedTo: "b8" },
 		answer: { value: "" },
 		submittedAt: new Date("2026-06-24T12:00:06.000Z"),
 		deadlineAt: new Date("2026-06-24T12:00:05.000Z"),
@@ -107,6 +149,8 @@ test("chess puzzle deadline returns a deadline barb", async () => {
 		type: "chess_puzzle",
 		submittedMove: "",
 		expectedSan: "Rb8#",
+		expectedFrom: "b1",
+		expectedTo: "b8",
 		malformed: true,
 	});
 });
